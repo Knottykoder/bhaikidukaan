@@ -1,0 +1,30 @@
+{
+  "name": "@bhaikidukaan/payment-service",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Razorpay payment processing gRPC microservice",
+  "type": "module",
+  "main": "./dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "typecheck": "tsc --noEmit",
+    "clean": "rimraf dist"
+  },
+  "dependencies": {
+    "@grpc/grpc-js": "^1.12.0",
+    "@grpc/proto-loader": "^0.7.13",
+    "@bhaikidukaan/proto-gen": "*",
+    "razorpay": "^2.9.0",
+    "ioredis": "^5.4.0",
+    "zod": "^3.24.0",
+    "dotenv": "^16.4.0",
+    "pino": "^9.6.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "tsx": "^4.19.0",
+    "rimraf": "^6.0.0"
+  }
+}

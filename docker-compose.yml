@@ -1,0 +1,214 @@
+services:
+  # ============================================
+  # Infrastructure: PostgreSQL Database
+  # ============================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: bkd-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-bhaikidukaan_users}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bkd-network
+
+  # ============================================
+  # Infrastructure: MongoDB Catalog Database
+  # ============================================
+  mongo:
+    image: mongo:7.0
+    container_name: bkd-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: ${MONGO_INITDB_DATABASE:-bhaikidukaan_products}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bkd-network
+
+  # ============================================
+  # Infrastructure: Redis Cache
+  # ============================================
+  redis:
+    image: redis:7-alpine
+    container_name: bkd-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - bkd-network
+
+  # ============================================
+  # Microservice: User Service (gRPC :50051)
+  # ============================================
+  user-service:
+    build:
+      context: .
+      dockerfile: services/user-service/Dockerfile
+    container_name: bkd-user-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      GRPC_PORT: 50051
+      GRPC_HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-bhaikidukaan_users}
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET:-bhai-ki-dukaan-access-secret-change-me}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET:-bhai-ki-dukaan-refresh-secret-change-me}
+      JWT_ACCESS_EXPIRES_IN: 15m
+      JWT_REFRESH_EXPIRES_IN: 7d
+    ports:
+      - "50051:50051"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - bkd-network
+
+  # ============================================
+  # Microservice: Product Service (gRPC :50052)
+  # ============================================
+  product-service:
+    build:
+      context: .
+      dockerfile: services/product-service/Dockerfile
+    container_name: bkd-product-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      GRPC_PORT: 50052
+      GRPC_HOST: 0.0.0.0
+      MONGODB_URI: mongodb://mongo:27017/${MONGO_INITDB_DATABASE:-bhaikidukaan_products}
+    ports:
+      - "50052:50052"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    networks:
+      - bkd-network
+
+  # ============================================
+  # Microservice: Order Service (gRPC :50053)
+  # ============================================
+  order-service:
+    build:
+      context: .
+      dockerfile: services/order-service/Dockerfile
+    container_name: bkd-order-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      GRPC_PORT: 50053
+      GRPC_HOST: 0.0.0.0
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-bhaikidukaan_users}
+      PRODUCT_SERVICE_ADDRESS: product-service:50052
+      PAYMENT_SERVICE_ADDRESS: payment-service:50054
+    ports:
+      - "50053:50053"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      product-service:
+        condition: service_started
+    networks:
+      - bkd-network
+
+  # ============================================
+  # Microservice: Payment Service (gRPC :50054)
+  # ============================================
+  payment-service:
+    build:
+      context: .
+      dockerfile: services/payment-service/Dockerfile
+    container_name: bkd-payment-service
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      GRPC_PORT: 50054
+      GRPC_HOST: 0.0.0.0
+      RAZORPAY_KEY_ID: ${RAZORPAY_KEY_ID:-rzp_test_TULyjjwTwy3mlM}
+      RAZORPAY_KEY_SECRET: ${RAZORPAY_KEY_SECRET:-VnXvui8ZgMJqq9c0zH51grJj}
+      ORDER_SERVICE_ADDRESS: order-service:50053
+    ports:
+      - "50054:50054"
+    networks:
+      - bkd-network
+
+  # ============================================
+  # API Gateway (REST :4000)
+  # ============================================
+  gateway:
+    build:
+      context: .
+      dockerfile: services/gateway/Dockerfile
+    container_name: bkd-gateway
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      GATEWAY_PORT: 4000
+      GATEWAY_HOST: 0.0.0.0
+      USER_SERVICE_ADDRESS: user-service:50051
+      PRODUCT_SERVICE_ADDRESS: product-service:50052
+      ORDER_SERVICE_ADDRESS: order-service:50053
+      PAYMENT_SERVICE_ADDRESS: payment-service:50054
+      CORS_ORIGINS: http://localhost:5173,http://localhost:80,http://localhost:3000,http://localhost,http://127.0.0.1:5173
+    ports:
+      - "4000:4000"
+    depends_on:
+      - user-service
+      - product-service
+      - order-service
+      - payment-service
+    networks:
+      - bkd-network
+
+  # ============================================
+  # Web Frontend (Nginx SPA :5173 / :80)
+  # ============================================
+  web:
+    build:
+      context: .
+      dockerfile: web/Dockerfile
+    container_name: bkd-web
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+    depends_on:
+      - gateway
+    networks:
+      - bkd-network
+
+networks:
+  bkd-network:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  mongo_data:
+    driver: local
+  redis_data:
+    driver: local

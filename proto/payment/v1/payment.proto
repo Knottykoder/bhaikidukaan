@@ -1,0 +1,109 @@
+syntax = "proto3";
+
+package payment.v1;
+
+// ============================================
+// Payment Service — Razorpay Integration
+// ============================================
+
+// ---------- Messages ----------
+
+enum PaymentStatus {
+  PAYMENT_STATUS_UNSPECIFIED = 0;
+  PAYMENT_STATUS_CREATED = 1;
+  PAYMENT_STATUS_AUTHORIZED = 2;
+  PAYMENT_STATUS_CAPTURED = 3;
+  PAYMENT_STATUS_FAILED = 4;
+  PAYMENT_STATUS_REFUNDED = 5;
+}
+
+enum PaymentMethod {
+  PAYMENT_METHOD_UNSPECIFIED = 0;
+  PAYMENT_METHOD_UPI = 1;
+  PAYMENT_METHOD_CARD = 2;
+  PAYMENT_METHOD_NETBANKING = 3;
+  PAYMENT_METHOD_WALLET = 4;
+  PAYMENT_METHOD_COD = 5;
+}
+
+message Payment {
+  string id = 1;
+  string order_id = 2;
+  string user_id = 3;
+  string razorpay_order_id = 4;
+  string razorpay_payment_id = 5;
+  string razorpay_signature = 6;
+  double amount = 7;
+  string currency = 8;
+  PaymentStatus status = 9;
+  PaymentMethod method = 10;
+  string created_at = 11;
+  string updated_at = 12;
+}
+
+// ---------- Create Razorpay Order ----------
+
+message CreateRazorpayOrderRequest {
+  string order_id = 1;          // internal order id
+  double amount = 2;            // amount in INR
+  string currency = 3;          // "INR"
+}
+
+message CreateRazorpayOrderResponse {
+  string razorpay_order_id = 1;
+  double amount = 2;
+  string currency = 3;
+  string razorpay_key_id = 4;   // public key for frontend checkout
+}
+
+// ---------- Verify Payment ----------
+
+message VerifyPaymentRequest {
+  string razorpay_order_id = 1;
+  string razorpay_payment_id = 2;
+  string razorpay_signature = 3;
+  string order_id = 4;          // internal order id
+}
+
+message VerifyPaymentResponse {
+  bool verified = 1;
+  Payment payment = 2;
+}
+
+// ---------- Get Payment Status ----------
+
+message GetPaymentStatusRequest {
+  string order_id = 1;
+}
+
+message GetPaymentStatusResponse {
+  Payment payment = 1;
+}
+
+// ---------- Refund ----------
+
+message RefundPaymentRequest {
+  string payment_id = 1;
+  double amount = 2;            // partial or full refund
+  string reason = 3;
+}
+
+message RefundPaymentResponse {
+  bool success = 1;
+  string refund_id = 2;
+  PaymentStatus new_status = 3;
+}
+
+// ---------- Service Definition ----------
+
+service PaymentService {
+  // Razorpay checkout flow
+  rpc CreateRazorpayOrder(CreateRazorpayOrderRequest) returns (CreateRazorpayOrderResponse);
+  rpc VerifyPayment(VerifyPaymentRequest) returns (VerifyPaymentResponse);
+
+  // Status
+  rpc GetPaymentStatus(GetPaymentStatusRequest) returns (GetPaymentStatusResponse);
+
+  // Refund
+  rpc RefundPayment(RefundPaymentRequest) returns (RefundPaymentResponse);
+}

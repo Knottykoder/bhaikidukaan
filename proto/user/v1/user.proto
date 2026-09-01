@@ -1,0 +1,138 @@
+syntax = "proto3";
+
+package user.v1;
+
+// ============================================
+// User Service — Authentication & Profile
+// ============================================
+
+// ---------- Messages ----------
+
+message User {
+  string id = 1;
+  string email = 2;
+  string name = 3;
+  string phone = 4;
+  string avatar_url = 5;
+  repeated Address addresses = 6;
+  string created_at = 7;
+  string updated_at = 8;
+}
+
+message Address {
+  string id = 1;
+  string label = 2;          // "Home", "Office", etc.
+  string line1 = 3;
+  string line2 = 4;
+  string city = 5;
+  string state = 6;
+  string pincode = 7;
+  string country = 8;
+  bool is_default = 9;
+}
+
+message AuthTokens {
+  string access_token = 1;
+  string refresh_token = 2;
+  int64 expires_in = 3;      // seconds until access_token expires
+}
+
+// ---------- Register ----------
+
+message RegisterRequest {
+  string email = 1;
+  string password = 2;
+  string name = 3;
+  string phone = 4;
+}
+
+message RegisterResponse {
+  User user = 1;
+  AuthTokens tokens = 2;
+}
+
+// ---------- Login ----------
+
+message LoginRequest {
+  string email = 1;
+  string password = 2;
+}
+
+message LoginResponse {
+  User user = 1;
+  AuthTokens tokens = 2;
+}
+
+// ---------- Refresh Token ----------
+
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message RefreshTokenResponse {
+  AuthTokens tokens = 1;
+}
+
+// ---------- Get Profile ----------
+
+message GetProfileRequest {}
+
+message GetProfileResponse {
+  User user = 1;
+}
+
+// ---------- Update Profile ----------
+
+message UpdateProfileRequest {
+  string name = 1;
+  string phone = 2;
+  string avatar_url = 3;
+}
+
+message UpdateProfileResponse {
+  User user = 1;
+}
+
+// ---------- Address Management ----------
+
+message AddAddressRequest {
+  Address address = 1;
+}
+
+message AddAddressResponse {
+  Address address = 1;
+}
+
+message UpdateAddressRequest {
+  Address address = 1;
+}
+
+message UpdateAddressResponse {
+  Address address = 1;
+}
+
+message DeleteAddressRequest {
+  string address_id = 1;
+}
+
+message DeleteAddressResponse {
+  bool success = 1;
+}
+
+// ---------- Service Definition ----------
+
+service UserService {
+  // Auth
+  rpc Register(RegisterRequest) returns (RegisterResponse);
+  rpc Login(LoginRequest) returns (LoginResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (RefreshTokenResponse);
+
+  // Profile
+  rpc GetProfile(GetProfileRequest) returns (GetProfileResponse);
+  rpc UpdateProfile(UpdateProfileRequest) returns (UpdateProfileResponse);
+
+  // Addresses
+  rpc AddAddress(AddAddressRequest) returns (AddAddressResponse);
+  rpc UpdateAddress(UpdateAddressRequest) returns (UpdateAddressResponse);
+  rpc DeleteAddress(DeleteAddressRequest) returns (DeleteAddressResponse);
+}

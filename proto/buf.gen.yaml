@@ -1,0 +1,14 @@
+version: v2
+plugins:
+  # Generate TypeScript message classes (for both frontend + backend)
+  - local: protoc-gen-es
+    out: ../packages/proto-gen/src/gen
+    opt:
+      - target=ts
+  # Generate Connect-RPC service clients (for frontend via gateway)
+  - local: protoc-gen-connect-es
+    out: ../packages/proto-gen/src/gen
+    opt:
+      - target=ts
+inputs:
+  - directory: .

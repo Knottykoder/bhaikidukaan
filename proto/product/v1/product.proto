@@ -1,0 +1,171 @@
+syntax = "proto3";
+
+package product.v1;
+
+// ============================================
+// Product Service — Catalog, Search & Inventory
+// ============================================
+
+// ---------- Messages ----------
+
+message Product {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  string description = 4;
+  double price = 5;
+  double compare_at_price = 6;    // original price (for showing discount)
+  string currency = 7;            // "INR"
+  repeated string images = 8;
+  string category_id = 9;
+  string category_name = 10;
+  repeated string tags = 11;
+  int32 stock = 12;
+  bool in_stock = 13;
+  double rating = 14;
+  int32 review_count = 15;
+  repeated ProductVariant variants = 16;
+  map<string, string> attributes = 17;  // "color": "red", "size": "XL"
+  string created_at = 18;
+  string updated_at = 19;
+}
+
+message ProductVariant {
+  string id = 1;
+  string name = 2;              // "Red - XL"
+  string sku = 3;
+  double price = 4;
+  int32 stock = 5;
+  map<string, string> options = 6;  // "color": "red", "size": "XL"
+}
+
+message Category {
+  string id = 1;
+  string name = 2;
+  string slug = 3;
+  string description = 4;
+  string image_url = 5;
+  string parent_id = 6;
+  int32 product_count = 7;
+}
+
+// ---------- List Products (with filters) ----------
+
+message ListProductsRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  string category_id = 3;
+  string sort_by = 4;             // "price_asc", "price_desc", "newest", "rating"
+  double min_price = 5;
+  double max_price = 6;
+  repeated string tags = 7;
+  bool in_stock_only = 8;
+}
+
+message ListProductsResponse {
+  repeated Product products = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+  int32 total_pages = 5;
+}
+
+// ---------- Get Single Product ----------
+
+message GetProductRequest {
+  string id = 1;
+  string slug = 2;                // can fetch by id OR slug
+}
+
+message GetProductResponse {
+  Product product = 1;
+}
+
+// ---------- Search ----------
+
+message SearchProductsRequest {
+  string query = 1;
+  int32 page = 2;
+  int32 page_size = 3;
+  string category_id = 4;
+  double min_price = 5;
+  double max_price = 6;
+}
+
+message SearchProductsResponse {
+  repeated Product products = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+// ---------- Categories ----------
+
+message ListCategoriesRequest {}
+
+message ListCategoriesResponse {
+  repeated Category categories = 1;
+}
+
+// ---------- Featured / Deals ----------
+
+message GetFeaturedProductsRequest {
+  int32 limit = 1;
+}
+
+message GetFeaturedProductsResponse {
+  repeated Product products = 1;
+}
+
+// ---------- Create Product (for seeding / future admin) ----------
+
+message CreateProductRequest {
+  string name = 1;
+  string description = 2;
+  double price = 3;
+  double compare_at_price = 4;
+  repeated string images = 5;
+  string category_id = 6;
+  repeated string tags = 7;
+  int32 stock = 8;
+  repeated ProductVariant variants = 9;
+  map<string, string> attributes = 10;
+}
+
+message CreateProductResponse {
+  Product product = 1;
+}
+
+// ---------- Update Stock (internal, called by Order Service) ----------
+
+message UpdateStockRequest {
+  string product_id = 1;
+  string variant_id = 2;
+  int32 quantity_change = 3;     // negative for decrement
+}
+
+message UpdateStockResponse {
+  bool success = 1;
+  int32 new_stock = 2;
+}
+
+// ---------- Service Definition ----------
+
+service ProductService {
+  // Catalog
+  rpc ListProducts(ListProductsRequest) returns (ListProductsResponse);
+  rpc GetProduct(GetProductRequest) returns (GetProductResponse);
+  rpc SearchProducts(SearchProductsRequest) returns (SearchProductsResponse);
+
+  // Categories
+  rpc ListCategories(ListCategoriesRequest) returns (ListCategoriesResponse);
+
+  // Featured
+  rpc GetFeaturedProducts(GetFeaturedProductsRequest) returns (GetFeaturedProductsResponse);
+
+  // Management (seeding / future admin)
+  rpc CreateProduct(CreateProductRequest) returns (CreateProductResponse);
+
+  // Internal (service-to-service)
+  rpc UpdateStock(UpdateStockRequest) returns (UpdateStockResponse);
+}

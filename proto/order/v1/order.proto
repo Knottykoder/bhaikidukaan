@@ -1,0 +1,210 @@
+syntax = "proto3";
+
+package order.v1;
+
+import "user/v1/user.proto";
+
+// ============================================
+// Order Service — Cart & Order Management
+// ============================================
+
+// ---------- Cart Messages ----------
+
+message CartItem {
+  string product_id = 1;
+  string variant_id = 2;
+  string product_name = 3;
+  string product_image = 4;
+  double price = 5;
+  int32 quantity = 6;
+  double subtotal = 7;
+}
+
+message Cart {
+  string id = 1;
+  string user_id = 2;
+  repeated CartItem items = 3;
+  int32 total_items = 4;
+  double subtotal = 5;
+  double shipping_cost = 6;
+  double tax = 7;
+  double total = 8;
+}
+
+// ---------- Cart Operations ----------
+
+message AddToCartRequest {
+  string product_id = 1;
+  string variant_id = 2;
+  int32 quantity = 3;
+}
+
+message AddToCartResponse {
+  Cart cart = 1;
+}
+
+message GetCartRequest {}
+
+message GetCartResponse {
+  Cart cart = 1;
+}
+
+message UpdateCartItemRequest {
+  string product_id = 1;
+  string variant_id = 2;
+  int32 quantity = 3;            // set to 0 to remove
+}
+
+message UpdateCartItemResponse {
+  Cart cart = 1;
+}
+
+message RemoveFromCartRequest {
+  string product_id = 1;
+  string variant_id = 2;
+}
+
+message RemoveFromCartResponse {
+  Cart cart = 1;
+}
+
+message ClearCartRequest {}
+
+message ClearCartResponse {
+  bool success = 1;
+}
+
+// ---------- Order Messages ----------
+
+enum OrderStatus {
+  ORDER_STATUS_UNSPECIFIED = 0;
+  ORDER_STATUS_PENDING = 1;
+  ORDER_STATUS_CONFIRMED = 2;
+  ORDER_STATUS_PROCESSING = 3;
+  ORDER_STATUS_SHIPPED = 4;
+  ORDER_STATUS_DELIVERED = 5;
+  ORDER_STATUS_CANCELLED = 6;
+  ORDER_STATUS_REFUNDED = 7;
+}
+
+message OrderItem {
+  string product_id = 1;
+  string variant_id = 2;
+  string product_name = 3;
+  string product_image = 4;
+  double price = 5;
+  int32 quantity = 6;
+  double subtotal = 7;
+}
+
+message ShippingAddress {
+  string name = 1;
+  string line1 = 2;
+  string line2 = 3;
+  string city = 4;
+  string state = 5;
+  string pincode = 6;
+  string phone = 7;
+}
+
+message Order {
+  string id = 1;
+  string user_id = 2;
+  string order_number = 3;       // human-readable order number like "BKD-2026-001234"
+  repeated OrderItem items = 4;
+  ShippingAddress shipping_address = 5;
+  double subtotal = 6;
+  double shipping_cost = 7;
+  double tax = 8;
+  double total = 9;
+  OrderStatus status = 10;
+  string payment_id = 11;
+  string razorpay_order_id = 12;
+  string tracking_number = 13;
+  string notes = 14;
+  string created_at = 15;
+  string updated_at = 16;
+}
+
+// ---------- Order Operations ----------
+
+message CreateOrderRequest {
+  ShippingAddress shipping_address = 1;
+  string notes = 2;
+  repeated OrderItem items = 3;
+  double subtotal = 4;
+  double shipping_cost = 5;
+  double tax = 6;
+  double total = 7;
+  string payment_method = 8;
+  string payment_id = 9;
+  string user_id = 10;
+}
+
+message CreateOrderResponse {
+  Order order = 1;
+  string razorpay_order_id = 2;  // for frontend to initiate payment
+}
+
+message GetOrderRequest {
+  string order_id = 1;
+}
+
+message GetOrderResponse {
+  Order order = 1;
+}
+
+message ListOrdersRequest {
+  int32 page = 1;
+  int32 page_size = 2;
+  OrderStatus status = 3;       // filter by status
+  string user_id = 4;
+}
+
+message ListOrdersResponse {
+  repeated Order orders = 1;
+  int32 total = 2;
+  int32 page = 3;
+  int32 page_size = 4;
+}
+
+message CancelOrderRequest {
+  string order_id = 1;
+  string reason = 2;
+}
+
+message CancelOrderResponse {
+  Order order = 1;
+}
+
+// ---------- Internal (called by Payment Service) ----------
+
+message UpdateOrderStatusRequest {
+  string order_id = 1;
+  OrderStatus status = 2;
+  string payment_id = 3;
+}
+
+message UpdateOrderStatusResponse {
+  Order order = 1;
+}
+
+// ---------- Service Definition ----------
+
+service OrderService {
+  // Cart
+  rpc AddToCart(AddToCartRequest) returns (AddToCartResponse);
+  rpc GetCart(GetCartRequest) returns (GetCartResponse);
+  rpc UpdateCartItem(UpdateCartItemRequest) returns (UpdateCartItemResponse);
+  rpc RemoveFromCart(RemoveFromCartRequest) returns (RemoveFromCartResponse);
+  rpc ClearCart(ClearCartRequest) returns (ClearCartResponse);
+
+  // Orders
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc ListOrders(ListOrdersRequest) returns (ListOrdersResponse);
+  rpc CancelOrder(CancelOrderRequest) returns (CancelOrderResponse);
+
+  // Internal (service-to-service)
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (UpdateOrderStatusResponse);
+}

@@ -1,0 +1,31 @@
+{
+  "name": "@bhaikidukaan/proto-gen",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Generated TypeScript types and Connect-RPC clients from proto definitions",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./user": "./src/gen/user/v1/user_pb.ts",
+    "./user-service": "./src/gen/user/v1/user_connect.ts",
+    "./product": "./src/gen/product/v1/product_pb.ts",
+    "./product-service": "./src/gen/product/v1/product_connect.ts",
+    "./order": "./src/gen/order/v1/order_pb.ts",
+    "./order-service": "./src/gen/order/v1/order_connect.ts",
+    "./payment": "./src/gen/payment/v1/payment_pb.ts",
+    "./payment-service": "./src/gen/payment/v1/payment_connect.ts"
+  },
+  "scripts": {
+    "build": "echo 'proto-gen: no build needed'",
+    "clean": "rimraf src/gen"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^1.10.0",
+    "@connectrpc/connect": "^1.7.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "rimraf": "^6.0.0"
+  }
+}
