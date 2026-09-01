@@ -1,0 +1,135 @@
+services:
+  # ============================================
+  # 1. API Gateway (Public Web Service)
+  # ============================================
+  - type: web
+    name: bkd-gateway
+    runtime: docker
+    dockerfilePath: ./services/gateway/Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GATEWAY_PORT
+        value: 10000
+      - key: CORS_ORIGINS
+        value: '*'
+      - key: USER_SERVICE_ADDRESS
+        fromService:
+          type: pserv
+          name: bkd-user-service
+          property: hostport
+      - key: PRODUCT_SERVICE_ADDRESS
+        fromService:
+          type: pserv
+          name: bkd-product-service
+          property: hostport
+      - key: ORDER_SERVICE_ADDRESS
+        fromService:
+          type: pserv
+          name: bkd-order-service
+          property: hostport
+      - key: PAYMENT_SERVICE_ADDRESS
+        fromService:
+          type: pserv
+          name: bkd-payment-service
+          property: hostport
+
+  # ============================================
+  # 2. User Service (Private gRPC Service)
+  # ============================================
+  - type: pserv
+    name: bkd-user-service
+    runtime: docker
+    dockerfilePath: ./services/user-service/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GRPC_PORT
+        value: 50051
+      - key: GRPC_HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+
+  # ============================================
+  # 3. Product Service (Private gRPC Service)
+  # ============================================
+  - type: pserv
+    name: bkd-product-service
+    runtime: docker
+    dockerfilePath: ./services/product-service/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GRPC_PORT
+        value: 50052
+      - key: GRPC_HOST
+        value: 0.0.0.0
+      - key: MONGODB_URI
+        sync: false
+
+  # ============================================
+  # 4. Order Service (Private gRPC Service)
+  # ============================================
+  - type: pserv
+    name: bkd-order-service
+    runtime: docker
+    dockerfilePath: ./services/order-service/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GRPC_PORT
+        value: 50053
+      - key: GRPC_HOST
+        value: 0.0.0.0
+      - key: DATABASE_URL
+        sync: false
+      - key: PRODUCT_SERVICE_ADDRESS
+        fromService:
+          type: pserv
+          name: bkd-product-service
+          property: hostport
+      - key: PAYMENT_SERVICE_ADDRESS
+        fromService:
+          type: pserv
+          name: bkd-payment-service
+          property: hostport
+
+  # ============================================
+  # 5. Payment Service (Private gRPC Service)
+  # ============================================
+  - type: pserv
+    name: bkd-payment-service
+    runtime: docker
+    dockerfilePath: ./services/payment-service/Dockerfile
+    dockerContext: .
+    plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GRPC_PORT
+        value: 50054
+      - key: GRPC_HOST
+        value: 0.0.0.0
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: ORDER_SERVICE_ADDRESS
+        fromService:
+          type: pserv
+          name: bkd-order-service
+          property: hostport
