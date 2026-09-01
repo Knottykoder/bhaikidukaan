@@ -178,65 +178,81 @@ export const Home: React.FC = () => {
             </Link>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-              gap: 20,
-            }}
-          >
-            {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                to={`/products?category=${cat.id}`}
-                style={{
-                  position: 'relative',
-                  height: 240,
-                  borderRadius: 18,
-                  overflow: 'hidden',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'flex-end',
-                  padding: 24,
-                  border: '1px solid rgba(255, 255, 255, 0.08)',
-                  textDecoration: 'none',
-                }}
-              >
-                <img
-                  src={cat.imageUrl}
-                  alt={cat.name}
+          {categories.length > 0 ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+                gap: 20,
+              }}
+            >
+              {categories.map((cat) => (
+                <Link
+                  key={cat.id}
+                  to={`/products?category=${cat.id}`}
                   style={{
-                    position: 'absolute',
-                    inset: 0,
-                    width: '100%',
-                    height: '100%',
-                    objectFit: 'cover',
-                    transition: 'transform 0.4s ease',
+                    position: 'relative',
+                    height: 240,
+                    borderRadius: 18,
+                    overflow: 'hidden',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    justifyContent: 'flex-end',
+                    padding: 24,
+                    border: '1px solid rgba(255, 255, 255, 0.08)',
+                    textDecoration: 'none',
                   }}
-                  className="product-image-hover"
-                />
-                <div
-                  style={{
-                    position: 'absolute',
-                    inset: 0,
-                    background: 'linear-gradient(to top, rgba(10, 12, 16, 0.95) 0%, rgba(10, 12, 16, 0.3) 60%, transparent 100%)',
-                  }}
-                />
+                >
+                  <img
+                    src={cat.imageUrl}
+                    alt={cat.name}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      transition: 'transform 0.4s ease',
+                    }}
+                    className="product-image-hover"
+                  />
+                  <div
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'linear-gradient(to top, rgba(10, 12, 16, 0.95) 0%, rgba(10, 12, 16, 0.3) 60%, transparent 100%)',
+                    }}
+                  />
 
-                <div style={{ position: 'relative', zIndex: 1 }}>
-                  <span style={{ fontSize: '0.75rem', color: '#818cf8', fontWeight: 700, textTransform: 'uppercase' }}>
-                    {cat.productCount} Products
-                  </span>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', marginTop: 2, marginBottom: 4 }}>
-                    {cat.name}
-                  </h3>
-                  <p style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.3 }}>
-                    {cat.description}
-                  </p>
-                </div>
-              </Link>
-            ))}
-          </div>
+                  <div style={{ position: 'relative', zIndex: 1 }}>
+                    <span style={{ fontSize: '0.75rem', color: '#818cf8', fontWeight: 700, textTransform: 'uppercase' }}>
+                      {cat.productCount} Products
+                    </span>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#f8fafc', marginTop: 2, marginBottom: 4 }}>
+                      {cat.name}
+                    </h3>
+                    <p style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.3 }}>
+                      {cat.description}
+                    </p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                background: 'rgba(22, 27, 38, 0.4)',
+                borderRadius: 16,
+                border: '1px dashed rgba(255, 255, 255, 0.08)',
+                color: '#94a3b8',
+                fontSize: '0.92rem',
+              }}
+            >
+              Categories are loading or syncing. Check out all products in the catalog!
+            </div>
+          )}
         </div>
       </section>
 
@@ -257,17 +273,40 @@ export const Home: React.FC = () => {
             </Link>
           </div>
 
-          <div
-            style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-              gap: 24,
-            }}
-          >
-            {featuredProducts.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
+          {featuredProducts.length > 0 ? (
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                gap: 24,
+              }}
+            >
+              {featuredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '60px 24px',
+                background: 'rgba(22, 27, 38, 0.5)',
+                borderRadius: 20,
+                border: '1px dashed rgba(255, 255, 255, 0.1)',
+              }}
+            >
+              <ShoppingBag size={40} color="#818cf8" style={{ margin: '0 auto 14px' }} />
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#f8fafc', marginBottom: 6 }}>
+                Fresh Drops Coming Soon
+              </h3>
+              <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: 20 }}>
+                Explore our full catalog to discover all currently in-stock products.
+              </p>
+              <Link to="/products" className="btn-primary" style={{ padding: '10px 24px' }}>
+                Explore All Products
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 

@@ -291,7 +291,7 @@ export const Orders: React.FC = () => {
                 {order.items.map((item) => (
                   <div key={item.product.id} style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                     <img
-                      src={item.product.images[0]}
+                      src={item.product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80'}
                       alt={item.product.name}
                       style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', background: '#131822' }}
                     />

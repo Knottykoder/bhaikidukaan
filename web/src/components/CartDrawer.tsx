@@ -149,7 +149,7 @@ export const CartDrawer: React.FC = () => {
                     }}
                   >
                     <img
-                      src={item.product.images[0]}
+                      src={item.product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80'}
                       alt={item.product.name}
                       style={{
                         width: 70,

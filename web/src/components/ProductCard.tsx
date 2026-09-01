@@ -2,12 +2,12 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { Star, ShoppingBag, ArrowRight, ShieldCheck, Zap } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { MockProduct } from '../data/mockData.js';
+import { Product } from '../types/product.js';
 import { useCartStore } from '../stores/cartStore.js';
 import toast from 'react-hot-toast';
 
 interface ProductCardProps {
-  product: MockProduct;
+  product: Product;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
@@ -43,7 +43,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         }}
       >
         <img
-          src={product.images[0]}
+          src={product.images?.[0] || 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?auto=format&fit=crop&w=800&q=80'}
           alt={product.name}
           style={{
             width: '100%',

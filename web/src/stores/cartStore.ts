@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { type MockProduct } from '../data/mockData.js';
+import { type Product } from '../types/product.js';
 import { API_BASE } from '../api/config.js';
 
 export interface CartItem {
-  product: MockProduct;
+  product: Product;
   quantity: number;
   selectedVariant?: string;
 }
@@ -41,7 +41,7 @@ interface CartState {
   isLoadingOrders: boolean;
 
   // Actions
-  addItem: (product: MockProduct, quantity?: number, variant?: string) => void;
+  addItem: (product: Product, quantity?: number, variant?: string) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;

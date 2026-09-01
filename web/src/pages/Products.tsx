@@ -13,7 +13,18 @@ export const Products: React.FC = () => {
   const [maxPrice, setMaxPrice] = useState<number>(10000);
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
 
-  const { products, categories, isLoading, fetchProducts, fetchCategories } = useProductStore();
+  const { products, categories, isLoading, error, fetchProducts, fetchCategories } = useProductStore();
+
+  const handleRetry = () => {
+    fetchCategories();
+    fetchProducts({
+      category: activeCategory,
+      search: searchQuery,
+      sortBy: selectedSort,
+      maxPrice: maxPrice < 10000 ? maxPrice : undefined,
+      inStockOnly,
+    });
+  };
 
   // Fetch products and categories on mount / filter change
   useEffect(() => {
@@ -189,33 +200,79 @@ export const Products: React.FC = () => {
           <Loader2 size={36} color="#818cf8" className="animate-spin" style={{ margin: '0 auto 16px' }} />
           <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>Loading catalog from Product Service...</p>
         </div>
+      ) : error && products.length === 0 ? (
+        <div
+          style={{
+            textAlign: 'center',
+            padding: '70px 24px',
+            background: 'rgba(22, 27, 38, 0.6)',
+            borderRadius: 20,
+            border: '1px solid rgba(239, 68, 68, 0.2)',
+            maxWidth: 560,
+            margin: '0 auto',
+          }}
+        >
+          <div
+            style={{
+              width: 60,
+              height: 60,
+              borderRadius: '50%',
+              background: 'rgba(239, 68, 68, 0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 16px',
+              color: '#f87171',
+            }}
+          >
+            <Tag size={28} />
+          </div>
+          <h3 style={{ color: '#f8fafc', fontSize: '1.25rem', fontWeight: 800, marginBottom: 8 }}>
+            Unable to load products
+          </h3>
+          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: 24, lineHeight: 1.5 }}>
+            {error || 'Could not connect to the backend server. Please make sure the Product Service and Gateway are running.'}
+          </p>
+          <button onClick={handleRetry} className="btn-primary" style={{ padding: '10px 24px' }}>
+            Retry Connection
+          </button>
+        </div>
       ) : products.length === 0 ? (
         <div
           style={{
             textAlign: 'center',
-            padding: '80px 20px',
+            padding: '70px 24px',
             background: 'rgba(22, 27, 38, 0.5)',
             borderRadius: 20,
             border: '1px dashed rgba(255, 255, 255, 0.1)',
+            maxWidth: 560,
+            margin: '0 auto',
           }}
         >
           <Tag size={48} color="#475569" style={{ margin: '0 auto 16px' }} />
-          <h3 style={{ color: '#f8fafc', fontSize: '1.25rem', marginBottom: 8 }}>No products found</h3>
-          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: 20 }}>
-            Try adjusting your search criteria or resetting filters.
+          <h3 style={{ color: '#f8fafc', fontSize: '1.25rem', fontWeight: 800, marginBottom: 8 }}>
+            No products found
+          </h3>
+          <p style={{ color: '#94a3b8', fontSize: '0.9rem', marginBottom: 20, lineHeight: 1.5 }}>
+            {searchQuery || activeCategory !== 'all'
+              ? 'No items matched your current filters. Try searching with different keywords or resetting filters.'
+              : 'There are currently no products available in the store. Please check back later!'}
           </p>
-          <button
-            onClick={() => {
-              searchParams.delete('category');
-              searchParams.delete('search');
-              setSearchParams(searchParams);
-              setMaxPrice(10000);
-              setInStockOnly(false);
-            }}
-            className="btn-primary"
-          >
-            Reset All Filters
-          </button>
+          {(searchQuery || activeCategory !== 'all' || inStockOnly || maxPrice < 10000) && (
+            <button
+              onClick={() => {
+                searchParams.delete('category');
+                searchParams.delete('search');
+                setSearchParams(searchParams);
+                setMaxPrice(10000);
+                setInStockOnly(false);
+              }}
+              className="btn-primary"
+              style={{ padding: '10px 24px' }}
+            >
+              Reset All Filters
+            </button>
+          )}
         </div>
       ) : (
         <div
