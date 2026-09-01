@@ -5,6 +5,7 @@ import { useCartStore } from '../stores/cartStore.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { useAuthModalStore } from '../stores/authModalStore.js';
 import toast from 'react-hot-toast';
+import { API_BASE } from '../api/config.js';
 
 declare global {
   interface Window {
@@ -110,7 +111,7 @@ export const Checkout: React.FC = () => {
     let rzpKey = 'rzp_test_demoKey1234567890';
 
     try {
-      const createRes = await fetch('http://localhost:4000/api/payments/create-order', {
+      const createRes = await fetch(`${API_BASE}/payments/create-order`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount: total, currency: 'INR' }),
@@ -151,7 +152,7 @@ export const Checkout: React.FC = () => {
 
           // Verify payment signature via backend
           try {
-            await fetch('http://localhost:4000/api/payments/verify', {
+            await fetch(`${API_BASE}/payments/verify`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({

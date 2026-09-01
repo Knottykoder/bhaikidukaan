@@ -1,9 +1,7 @@
 import { createClient } from '@connectrpc/connect';
 import { createConnectTransport } from '@connectrpc/connect-web';
 import { UserService, ProductService, OrderService, PaymentService } from '@bhaikidukaan/proto-gen';
-
-// Gateway Base URL (Env or default local port 4000)
-const GATEWAY_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:4000';
+import { GATEWAY_URL } from './config.js';
 
 // ----------------------------------------------------
 // Live gRPC Telemetry Inspector Event Bus

@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { type MockProduct, type MockCategory, MOCK_PRODUCTS, MOCK_CATEGORIES } from '../data/mockData.js';
-
-const API_BASE = 'http://localhost:4000/api';
+import { API_BASE } from '../api/config.js';
 
 export interface ProductFilters {
   category?: string;

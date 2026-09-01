@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-const API_BASE = 'http://localhost:4000/api';
+import { API_BASE } from '../api/config.js';
 
 export interface AddressItem {
   id: string;
