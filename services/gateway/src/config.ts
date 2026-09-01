@@ -29,7 +29,7 @@ function getEnvInt(key: string, defaultValue: number): number {
 }
 
 export const config = {
-  port: getEnvInt('GATEWAY_PORT', 4000),
+  port: getEnvInt('PORT', getEnvInt('GATEWAY_PORT', 4000)),
   host: getEnv('GATEWAY_HOST', '0.0.0.0'),
 
   // gRPC Service addresses

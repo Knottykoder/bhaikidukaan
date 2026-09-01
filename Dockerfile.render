@@ -1,0 +1,41 @@
+# ============================================
+# BhaiKiDukaan — Render Free Tier Deployment
+# Runs all 4 gRPC microservices + API Gateway in a single Web Service
+# ============================================
+
+# Stage 1: Build
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy monorepo manifests and source files
+COPY package.json package-lock.json turbo.json tsconfig.json ./
+COPY packages/proto-gen ./packages/proto-gen
+COPY proto ./proto
+COPY services ./services
+COPY scripts ./scripts
+
+# Install dependencies and compile TypeScript for all services
+RUN npm ci
+RUN npm run build
+
+# Stage 2: Production Runner
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+COPY package.json package-lock.json tsconfig.json ./
+COPY proto ./proto
+COPY packages/proto-gen ./packages/proto-gen
+COPY scripts ./scripts
+COPY --from=builder /app/services ./services
+
+# Install production dependencies only
+RUN npm ci --omit=dev
+
+ENV NODE_ENV=production
+ENV PORT=10000
+
+EXPOSE 10000
+
+CMD ["node", "scripts/start-all.js"]
