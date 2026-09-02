@@ -4,6 +4,7 @@ import { db } from '../db/index.js';
 import { orders, orderItems, type Order, type OrderItem } from '../db/schema.js';
 import { updateProductStock } from '../grpc-clients.js';
 import { logger } from '../utils/logger.js';
+import { publishOrderEvent } from '../kafka/producer.js';
 
 // ============================================
 // Helper: Format Order for gRPC response
@@ -137,10 +138,21 @@ export async function createOrder(
       logger.warn({ err: err.message }, 'Could not decrement stock for all items');
     }
 
-    logger.info(
-      { orderId: newOrder.id, orderNumber: newOrder.orderNumber, userId, total: newOrder.total },
-      '✅ New Order Created in PostgreSQL Database & Stock Decremented',
-    );
+    // 4. Publish Kafka Event: ORDER_CREATED
+    publishOrderEvent('ORDER_CREATED', {
+      orderId: newOrder.id,
+      orderNumber: newOrder.orderNumber,
+      userId: newOrder.userId,
+      items: items.map((i: any) => ({
+        productId: i.productId,
+        productName: i.productName || 'Product',
+        quantity: parseInt(i.quantity || 1, 10),
+        price: parseFloat(i.price || 0),
+      })),
+      total: parseFloat(newOrder.total),
+      paymentMethod: newOrder.paymentMethod,
+      timestamp: new Date().toISOString(),
+    }).catch(() => { });
 
     callback(null, {
       order: formatOrder(newOrder, insertedItems),
@@ -272,6 +284,22 @@ export async function cancelOrder(
     const items = await db.query.orderItems.findMany({
       where: eq(orderItems.orderId, updatedOrder.id),
     });
+
+    // Publish Kafka Event: ORDER_CANCELLED
+    publishOrderEvent('ORDER_CANCELLED', {
+      orderId: updatedOrder.id,
+      orderNumber: updatedOrder.orderNumber,
+      userId: updatedOrder.userId,
+      items: items.map((i) => ({
+        productId: i.productId,
+        productName: i.productName,
+        quantity: i.quantity,
+        price: parseFloat(i.price),
+      })),
+      total: parseFloat(updatedOrder.total),
+      reason: reason || 'Cancelled by customer',
+      timestamp: new Date().toISOString(),
+    }).catch(() => { });
 
     logger.info({ orderId, orderNumber: updatedOrder.orderNumber }, '🚫 Order Cancelled');
 

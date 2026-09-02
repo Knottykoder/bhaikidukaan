@@ -2,6 +2,7 @@ import { type ServerUnaryCall, type sendUnaryData, status } from '@grpc/grpc-js'
 import { razorpay, verifySignature } from '../utils/razorpay.js';
 import { config } from '../config.js';
 import { logger } from '../utils/logger.js';
+import { publishPaymentEvent } from '../kafka/producer.js';
 
 // In-memory payment records store (or PostgreSQL)
 const paymentRecords = new Map<string, any>();
@@ -123,9 +124,20 @@ export async function verifyPayment(
 
     paymentRecords.set(razorpayPaymentId, paymentData);
 
+    // Publish Kafka Payment Event
+    publishPaymentEvent(isValid ? 'PAYMENT_COMPLETED' : 'PAYMENT_FAILED', {
+      orderId,
+      paymentId: razorpayPaymentId,
+      razorpayOrderId,
+      amount: paymentData.amount,
+      currency: 'INR',
+      error: isValid ? undefined : 'Invalid payment signature',
+      timestamp: new Date().toISOString(),
+    }).catch(() => { });
+
     logger.info(
       { paymentId: razorpayPaymentId, orderId, verified: isValid },
-      isValid ? '✅ Payment Signature Verified' : '⚠️ Payment Verification Failed',
+      isValid ? '✅ Payment Signature Verified & Event Published' : '⚠️ Payment Verification Failed & Event Published',
     );
 
     callback(null, {
