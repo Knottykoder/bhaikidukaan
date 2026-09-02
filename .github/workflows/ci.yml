@@ -1,0 +1,87 @@
+name: BhaiKiDukaan CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================
+  # 1. Monorepo Validation & Build Test
+  # ============================================
+  validate-and-build:
+    name: Typecheck & Build (Monorepo)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: 📦 Install Monorepo Dependencies
+        run: npm ci
+
+      - name: 📡 Generate Protocol Buffers
+        run: npm run proto:generate
+
+      - name: 🔍 TypeScript Typecheck (All Services & Web)
+        run: npm run typecheck
+
+      - name: 🏗️ Production Build (Turborepo)
+        run: npm run build
+
+  # ============================================
+  # 2. Docker Container Build Verification
+  # ============================================
+  docker-build-check:
+    name: Verify Docker Container Build
+    needs: validate-and-build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: 🐳 Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: 🔨 Build Render Production Container
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile.render
+          push: false
+          tags: bhaikidukaan-api:test
+
+  # ============================================
+  # 3. Automated CD Deploy Trigger (Main Branch Only)
+  # ============================================
+  deploy:
+    name: Trigger Production Deployment
+    needs: [validate-and-build, docker-build-check]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 Trigger Render Backend Deploy Webhook
+        if: env.RENDER_DEPLOY_HOOK_URL != ''
+        env:
+          RENDER_DEPLOY_HOOK_URL: ${{ secrets.RENDER_DEPLOY_HOOK_URL }}
+        run: |
+          echo "Triggering Render deployment webhook..."
+          curl -X POST "$RENDER_DEPLOY_HOOK_URL"
+          echo "✅ Deploy webhook triggered successfully!"
+
+      - name: 🌐 Frontend Deployment Status
+        run: |
+          echo "✅ Vercel deploys the frontend automatically on git push to main!"
