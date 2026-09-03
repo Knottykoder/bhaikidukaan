@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
   --bg-primary: #0a0c10;
   --bg-secondary: #12161f;
@@ -7,6 +11,7 @@
   --bg-glass: rgba(18, 22, 31, 0.65);
   
   --border-subtle: rgba(255, 255, 255, 0.08);
+
   --border-hover: rgba(129, 140, 248, 0.35);
   --border-active: #6366f1;
 
@@ -50,6 +55,11 @@
   box-sizing: border-box;
 }
 
+img, picture, video, canvas, svg {
+  display: block;
+  max-width: 100%;
+}
+
 body {
   font-family: var(--font-sans);
   background-color: var(--bg-primary);
@@ -57,6 +67,7 @@ body {
   line-height: 1.6;
   min-height: 100vh;
   overflow-x: hidden;
+
   background-image: 
     radial-gradient(circle at 15% 15%, rgba(99, 102, 241, 0.08) 0%, transparent 40%),
     radial-gradient(circle at 85% 65%, rgba(236, 72, 153, 0.06) 0%, transparent 40%),
@@ -267,15 +278,55 @@ input, select, textarea {
   background: var(--bg-card-hover);
 }
 
+/* Products Grid */
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 24px;
+  width: 100%;
+}
+
+@media (max-width: 640px) {
+  .products-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+/* Product Detail Grid */
+.product-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 44px;
+  align-items: start;
+  width: 100%;
+}
+
+@media (max-width: 860px) {
+  .product-detail-grid,
+  .product-detail-container {
+    grid-template-columns: 1fr !important;
+    gap: 28px !important;
+  }
+}
+
+
+
 /* Container */
 .container {
+  width: 100%;
   max-width: 1280px;
-  margin: 0 auto;
-  padding: 0 24px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 24px;
+  padding-right: 24px;
 }
+
 
 @media (max-width: 768px) {
   .container {
-    padding: 0 16px;
+    padding-left: 16px;
+    padding-right: 16px;
   }
 }
+

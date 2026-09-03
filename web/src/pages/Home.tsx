@@ -271,18 +271,13 @@ export const Home: React.FC = () => {
           </div>
 
           {featuredProducts.length > 0 ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: 24,
-              }}
-            >
+            <div className="products-grid">
               {featuredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
           ) : (
+
             <div
               style={{
                 textAlign: 'center',
