@@ -15,6 +15,8 @@ import { Checkout } from './pages/Checkout.js';
 import { Orders } from './pages/Orders.js';
 import { Profile } from './pages/Profile.js';
 
+import { AiAssistant } from './components/AiAssistant.js';
+
 export const App: React.FC = () => {
   const { isOpen, close, defaultTab, onAuthSuccess } = useAuthModalStore();
 
@@ -43,6 +45,9 @@ export const App: React.FC = () => {
 
         {/* Global Sliding Cart Drawer */}
         <CartDrawer />
+
+        {/* Global AI Shopping Assistant */}
+        <AiAssistant />
 
         {/* Global Auth Modal */}
         <AuthModal

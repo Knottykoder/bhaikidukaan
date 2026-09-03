@@ -1,17 +1,14 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Sparkles, ShoppingBag, ShieldCheck, Truck, RefreshCw, Star, Heart, CheckCircle2 } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard.js';
-import { useProductStore } from '../stores/productStore.js';
+import { useGetFeaturedProductsQuery, useGetCategoriesQuery } from '../api/productsApi.js';
 
 export const Home: React.FC = () => {
-  const { featuredProducts, categories, fetchFeaturedProducts, fetchCategories } = useProductStore();
+  const { data: featuredProducts = [], isLoading: isLoadingFeatured } = useGetFeaturedProductsQuery(4);
+  const { data: categories = [], isLoading: isLoadingCategories } = useGetCategoriesQuery();
 
-  useEffect(() => {
-    fetchFeaturedProducts(4);
-    fetchCategories();
-  }, [fetchFeaturedProducts, fetchCategories]);
 
   return (
     <div>
@@ -274,18 +271,13 @@ export const Home: React.FC = () => {
           </div>
 
           {featuredProducts.length > 0 ? (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-                gap: 24,
-              }}
-            >
+            <div className="products-grid">
               {featuredProducts.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
           ) : (
+
             <div
               style={{
                 textAlign: 'center',

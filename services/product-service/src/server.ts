@@ -6,7 +6,7 @@ import { config } from './config.js';
 import { logger } from './utils/logger.js';
 import { connectDB, disconnectDB } from './db/index.js';
 
-// Handlers
+// Import handlers
 import {
   listProducts,
   getProduct,
@@ -26,7 +26,7 @@ const __dirname = path.dirname(__filename);
 const PROTO_PATH = path.resolve(__dirname, '../../../proto/product/v1/product.proto');
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
-  keepCase: false, // camelCase field names
+  keepCase: false,          // camelCase field names
   longs: String,
   enums: String,
   defaults: true,
@@ -38,20 +38,20 @@ const protoDescriptor = grpc.loadPackageDefinition(packageDefinition) as any;
 const productProto = protoDescriptor.product.v1;
 
 // ============================================
-// gRPC Server Initialization
+// gRPC Server
 // ============================================
 
 async function startServer(): Promise<void> {
-  // Connect to MongoDB
+  // Connect to database (with fallback to memory if offline)
   await connectDB();
 
-  // Create gRPC Server
+  // Create gRPC server
   const server = new grpc.Server({
-    'grpc.max_receive_message_length': 1024 * 1024 * 10,
+    'grpc.max_receive_message_length': 1024 * 1024 * 10, // 10MB
     'grpc.max_send_message_length': 1024 * 1024 * 10,
   });
 
-  // Register ProductService Handlers
+  // Register ProductService handlers
   server.addService(productProto.ProductService.service, {
     listProducts,
     getProduct,
@@ -87,16 +87,15 @@ async function startServer(): Promise<void> {
 
   // Graceful shutdown
   const shutdown = async (signal: string) => {
-    logger.info(`\n📴 Received ${signal}, shutting down Product Service gracefully...`);
+    logger.info(`\n📴 Received ${signal}, shutting down gracefully...`);
     server.tryShutdown(async () => {
       await disconnectDB();
       logger.info('👋 Product Service stopped');
       process.exit(0);
     });
 
-    // Force exit after 10s
     setTimeout(() => {
-      logger.warn('⚠️ Forcing Product Service shutdown after timeout');
+      logger.warn('⚠️ Forcing shutdown after timeout');
       process.exit(1);
     }, 10000);
   };
@@ -105,6 +104,7 @@ async function startServer(): Promise<void> {
   process.on('SIGTERM', () => shutdown('SIGTERM'));
 }
 
+// Start the server
 startServer().catch((err) => {
   logger.error({ err }, '💥 Failed to start Product Service');
   process.exit(1);

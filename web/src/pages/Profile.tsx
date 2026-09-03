@@ -1,27 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { User, Mail, Phone, MapPin, Shield, CheckCircle2, Plus, Trash2, Key, Lock, ArrowRight } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Shield, CheckCircle2, Plus, Trash2, Key, Lock, ArrowRight, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore.js';
 import { useAuthModalStore } from '../stores/authModalStore.js';
+import {
+  useGetProfileQuery,
+  useUpdateProfileMutation,
+  useAddAddressMutation,
+  useDeleteAddressMutation,
+} from '../api/authApi.js';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import toast from 'react-hot-toast';
 
 export const Profile: React.FC = () => {
-  const { user, isAuthenticated, fetchProfile, updateUserProfile, addAddress, deleteAddress } = useAuthStore();
+  const { user: localUser, isAuthenticated } = useAuthStore();
   const { openLogin, openRegister } = useAuthModalStore();
+
+  const { data: profileUser, isLoading: isLoadingProfile } = useGetProfileQuery(undefined, {
+    skip: !isAuthenticated,
+  });
+
+  const [updateProfileApi] = useUpdateProfileMutation();
+  const [addAddressApi] = useAddAddressMutation();
+  const [deleteAddressApi] = useDeleteAddressMutation();
+
+  const user = profileUser || localUser;
 
   const [name, setName] = useState(user?.name || '');
   const [email, setEmail] = useState(user?.email || '');
   const [phone, setPhone] = useState(user?.phone || '');
 
-  // Prompt sign in if guest, or fetch profile if logged in
+  // Prompt sign in if guest
   useEffect(() => {
     if (!isAuthenticated) {
       openLogin();
-    } else {
-      fetchProfile();
     }
-  }, [isAuthenticated, openLogin, fetchProfile]);
+  }, [isAuthenticated, openLogin]);
 
   useEffect(() => {
     if (user) {
@@ -44,12 +58,13 @@ export const Profile: React.FC = () => {
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    const success = await updateUserProfile(name, phone);
-    setIsSaving(false);
-    if (success) {
+    try {
+      await updateProfileApi({ name, phone }).unwrap();
       toast.success('Profile details updated in database! ✨');
-    } else {
-      toast.error('Failed to update profile');
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'Failed to update profile');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -61,36 +76,38 @@ export const Profile: React.FC = () => {
     }
 
     setIsSaving(true);
-    const success = await addAddress({
-      label: newLabel,
-      line1: newLine1,
-      city: newCity,
-      state: newState,
-      pincode: newPincode,
-      isDefault: addresses.length === 0,
-    });
-    setIsSaving(false);
+    try {
+      await addAddressApi({
+        label: newLabel,
+        line1: newLine1,
+        city: newCity,
+        state: newState,
+        pincode: newPincode,
+        isDefault: addresses.length === 0,
+      }).unwrap();
 
-    if (success) {
       setIsAddingAddress(false);
       setNewLine1('');
       setNewCity('');
       setNewState('');
       setNewPincode('');
-      toast.success('New address saved to Neon DB! 🏡');
-    } else {
-      toast.error('Failed to save address');
+      toast.success('New address saved to database! 🏡');
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'Failed to save address');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleDeleteAddress = async (id: string) => {
-    const success = await deleteAddress(id);
-    if (success) {
+    try {
+      await deleteAddressApi(id).unwrap();
       toast('Address removed from database', { icon: '🗑️' });
-    } else {
-      toast.error('Failed to remove address');
+    } catch (err: any) {
+      toast.error(err?.data?.error || 'Failed to remove address');
     }
   };
+
 
   // Protected State if user is guest
   if (!isAuthenticated) {
