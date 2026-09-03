@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Filter, Search, SlidersHorizontal, ArrowUpDown, X, Tag, Loader2 } from 'lucide-react';
 import { ProductCard } from '../components/ProductCard.js';
-import { useProductStore } from '../stores/productStore.js';
+import { useGetProductsQuery, useGetCategoriesQuery } from '../api/productsApi.js';
 
 export const Products: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -13,33 +13,29 @@ export const Products: React.FC = () => {
   const [maxPrice, setMaxPrice] = useState<number>(10000);
   const [inStockOnly, setInStockOnly] = useState<boolean>(false);
 
-  const { products, categories, isLoading, error, fetchProducts, fetchCategories } = useProductStore();
+  const {
+    data: productsData,
+    isLoading,
+    error: queryError,
+    refetch: refetchProducts,
+  } = useGetProductsQuery({
+    category: activeCategory,
+    search: searchQuery,
+    sortBy: selectedSort,
+    maxPrice: maxPrice < 10000 ? maxPrice : undefined,
+    inStockOnly,
+  });
+
+  const { data: categories = [], refetch: refetchCategories } = useGetCategoriesQuery();
+
+  const products = productsData?.products || [];
+  const error = queryError ? ((queryError as any)?.data?.error || 'Failed to fetch products') : null;
 
   const handleRetry = () => {
-    fetchCategories();
-    fetchProducts({
-      category: activeCategory,
-      search: searchQuery,
-      sortBy: selectedSort,
-      maxPrice: maxPrice < 10000 ? maxPrice : undefined,
-      inStockOnly,
-    });
+    refetchCategories();
+    refetchProducts();
   };
 
-  // Fetch products and categories on mount / filter change
-  useEffect(() => {
-    fetchCategories();
-  }, [fetchCategories]);
-
-  useEffect(() => {
-    fetchProducts({
-      category: activeCategory,
-      search: searchQuery,
-      sortBy: selectedSort,
-      maxPrice: maxPrice < 10000 ? maxPrice : undefined,
-      inStockOnly,
-    });
-  }, [activeCategory, searchQuery, selectedSort, maxPrice, inStockOnly, fetchProducts]);
 
   const handleCategoryChange = (catId: string) => {
     if (catId === 'all') {

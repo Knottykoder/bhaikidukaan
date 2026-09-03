@@ -348,3 +348,132 @@ export async function updateOrderStatus(
     callback({ code: status.INTERNAL, message: 'Failed to update order status' });
   }
 }
+
+// ============================================
+// Cart Handlers (In-Memory / Session Cart)
+// ============================================
+
+const inMemoryCarts = new Map<string, any>();
+
+function getOrCreateCart(userId = 'guest') {
+  if (!inMemoryCarts.has(userId)) {
+    inMemoryCarts.set(userId, {
+      id: `cart_${userId}`,
+      userId,
+      items: [],
+      totalItems: 0,
+      subtotal: 0,
+      shippingCost: 0,
+      tax: 0,
+      total: 0,
+    });
+  }
+  return inMemoryCarts.get(userId);
+}
+
+function recalculateCart(cart: any) {
+  cart.totalItems = cart.items.reduce((sum: number, i: any) => sum + i.quantity, 0);
+  cart.subtotal = cart.items.reduce((sum: number, i: any) => sum + i.price * i.quantity, 0);
+  cart.shippingCost = cart.subtotal > 999 ? 0 : cart.subtotal > 0 ? 99 : 0;
+  cart.tax = Math.round(cart.subtotal * 0.18);
+  cart.total = cart.subtotal + cart.shippingCost + cart.tax;
+}
+
+export async function addToCart(
+  call: ServerUnaryCall<any, any>,
+  callback: sendUnaryData<any>,
+): Promise<void> {
+  try {
+    const { productId, variantId = '', quantity = 1 } = call.request;
+    const cart = getOrCreateCart('guest');
+    const existing = cart.items.find((i: any) => i.productId === productId && i.variantId === variantId);
+    if (existing) {
+      existing.quantity += quantity;
+      existing.subtotal = existing.price * existing.quantity;
+    } else {
+      cart.items.push({
+        productId,
+        variantId,
+        productName: 'Product',
+        productImage: '',
+        price: 999,
+        quantity,
+        subtotal: 999 * quantity,
+      });
+    }
+    recalculateCart(cart);
+    callback(null, { cart });
+  } catch (error: any) {
+    logger.error({ error: error.message }, '❌ AddToCart failed');
+    callback({ code: status.INTERNAL, message: 'Failed to add item to cart' });
+  }
+}
+
+export async function getCart(
+  _call: ServerUnaryCall<any, any>,
+  callback: sendUnaryData<any>,
+): Promise<void> {
+  try {
+    const cart = getOrCreateCart('guest');
+    callback(null, { cart });
+  } catch (error: any) {
+    logger.error({ error: error.message }, '❌ GetCart failed');
+    callback({ code: status.INTERNAL, message: 'Failed to get cart' });
+  }
+}
+
+export async function updateCartItem(
+  call: ServerUnaryCall<any, any>,
+  callback: sendUnaryData<any>,
+): Promise<void> {
+  try {
+    const { productId, variantId = '', quantity } = call.request;
+    const cart = getOrCreateCart('guest');
+    if (quantity <= 0) {
+      cart.items = cart.items.filter((i: any) => !(i.productId === productId && i.variantId === variantId));
+    } else {
+      const item = cart.items.find((i: any) => i.productId === productId && i.variantId === variantId);
+      if (item) {
+        item.quantity = quantity;
+        item.subtotal = item.price * quantity;
+      }
+    }
+    recalculateCart(cart);
+    callback(null, { cart });
+  } catch (error: any) {
+    logger.error({ error: error.message }, '❌ UpdateCartItem failed');
+    callback({ code: status.INTERNAL, message: 'Failed to update cart item' });
+  }
+}
+
+export async function removeFromCart(
+  call: ServerUnaryCall<any, any>,
+  callback: sendUnaryData<any>,
+): Promise<void> {
+  try {
+    const { productId, variantId = '' } = call.request;
+    const cart = getOrCreateCart('guest');
+    cart.items = cart.items.filter((i: any) => !(i.productId === productId && i.variantId === variantId));
+    recalculateCart(cart);
+    callback(null, { cart });
+  } catch (error: any) {
+    logger.error({ error: error.message }, '❌ RemoveFromCart failed');
+    callback({ code: status.INTERNAL, message: 'Failed to remove from cart' });
+  }
+}
+
+export async function clearCart(
+  _call: ServerUnaryCall<any, any>,
+  callback: sendUnaryData<any>,
+): Promise<void> {
+  try {
+    const cart = getOrCreateCart('guest');
+    cart.items = [];
+    recalculateCart(cart);
+    callback(null, { success: true });
+  } catch (error: any) {
+    logger.error({ error: error.message }, '❌ ClearCart failed');
+    callback({ code: status.INTERNAL, message: 'Failed to clear cart' });
+  }
+}
+

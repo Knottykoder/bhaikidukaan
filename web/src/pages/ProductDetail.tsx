@@ -5,7 +5,7 @@ import { type Product } from '../types/product.js';
 import { useCartStore } from '../stores/cartStore.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { useAuthModalStore } from '../stores/authModalStore.js';
-import { useProductStore } from '../stores/productStore.js';
+import { useGetProductByIdQuery } from '../api/productsApi.js';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 
@@ -15,21 +15,23 @@ export const ProductDetail: React.FC = () => {
   const { addItem } = useCartStore();
   const { isAuthenticated } = useAuthStore();
   const { openRegister } = useAuthModalStore();
-  const { currentProduct, isDetailLoading, error, fetchProductById, clearCurrentProduct } = useProductStore();
+
+  const {
+    data: currentProduct,
+    isLoading: isDetailLoading,
+    error: queryError,
+  } = useGetProductByIdQuery(id || '', { skip: !id });
+
+  const error = queryError ? ((queryError as any)?.data?.error || 'Product not found') : null;
 
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
-    if (id) {
-      fetchProductById(id);
-      setSelectedImage(0);
-      setQuantity(1);
-    }
-    return () => {
-      clearCurrentProduct();
-    };
-  }, [id, fetchProductById, clearCurrentProduct]);
+    setSelectedImage(0);
+    setQuantity(1);
+  }, [id]);
+
 
   // Loading State
   if (isDetailLoading) {

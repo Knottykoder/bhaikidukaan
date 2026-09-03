@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useSearchParams, Link, useNavigate } from 'react-router-dom';
-import { Package, CheckCircle2, Clock, Truck, ShieldCheck, ArrowRight, ShoppingBag, Lock, UserCheck, Sparkles } from 'lucide-react';
-import { useCartStore } from '../stores/cartStore.js';
+import { Package, CheckCircle2, Clock, Truck, ShieldCheck, ArrowRight, ShoppingBag, Lock, UserCheck, Sparkles, Loader2 } from 'lucide-react';
+import { useGetOrdersQuery } from '../api/ordersApi.js';
 import { useAuthStore } from '../stores/authStore.js';
 import { useAuthModalStore } from '../stores/authModalStore.js';
 import { motion } from 'framer-motion';
@@ -9,19 +9,23 @@ import { motion } from 'framer-motion';
 export const Orders: React.FC = () => {
   const [searchParams] = useSearchParams();
   const successOrderId = searchParams.get('success');
-  const { orders, isLoadingOrders, fetchUserOrders } = useCartStore();
   const { user, isAuthenticated } = useAuthStore();
   const { openLogin, openRegister } = useAuthModalStore();
   const navigate = useNavigate();
+
+  const {
+    data: orders = [],
+    isLoading: isLoadingOrders,
+    refetch: refetchOrders,
+  } = useGetOrdersQuery(undefined, { skip: !isAuthenticated });
 
   // If user is not authenticated, prompt sign in popup
   useEffect(() => {
     if (!isAuthenticated) {
       openLogin();
-    } else {
-      fetchUserOrders();
     }
-  }, [isAuthenticated, openLogin, fetchUserOrders]);
+  }, [isAuthenticated, openLogin]);
+
 
   // Protected State if user is guest
   if (!isAuthenticated) {
