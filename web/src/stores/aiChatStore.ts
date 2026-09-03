@@ -8,6 +8,13 @@ export interface ChatMessage {
   content: string;
   products?: Product[];
   timestamp: string;
+  isStreaming?: boolean;
+}
+
+export interface ChatContext {
+  userName?: string;
+  currentProductName?: string;
+  cartCount?: number;
 }
 
 interface AiChatState {
@@ -19,7 +26,7 @@ interface AiChatState {
   // Actions
   toggleChat: () => void;
   setOpen: (open: boolean) => void;
-  sendMessage: (text: string) => Promise<void>;
+  sendMessage: (text: string, context?: ChatContext) => Promise<void>;
   clearHistory: () => void;
 }
 
@@ -27,14 +34,14 @@ const INITIAL_MESSAGES: ChatMessage[] = [
   {
     id: 'welcome-1',
     role: 'assistant',
-    content: `Namaste! 🙏 I'm **Bhai AI**, your personal shopping assistant. Looking for top-rated audio gear, smart gadgets, or budget deals? Ask me anything!`,
+    content: `Namaste! 🙏 I'm **Bhai AI**, your personal shopping companion.\n\nWhether you're looking for studio-quality audio, AMOLED smartwatches, or deals under your budget — ask me anything or tell me what you need!`,
     timestamp: new Date().toISOString(),
   },
 ];
 
 const INITIAL_PROMPTS = [
   '🎧 Best Wireless Earbuds under ₹2,500',
-  '🔥 Trending Deals Today',
+  '🔥 Trending Deals & Coupons Today',
   '⚡ High-Performance Smartwatches',
   '📦 Track my order (BKD-...)',
 ];
@@ -54,7 +61,7 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
       suggestedPrompts: INITIAL_PROMPTS,
     }),
 
-  sendMessage: async (text: string) => {
+  sendMessage: async (text: string, context: ChatContext = {}) => {
     if (!text.trim() || get().isLoading) return;
 
     const userMsg: ChatMessage = {
@@ -81,6 +88,9 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
         body: JSON.stringify({
           message: text.trim(),
           history: historyPayload,
+          userName: context.userName,
+          currentProductName: context.currentProductName,
+          cartCount: context.cartCount,
         }),
       });
 
@@ -89,9 +99,10 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
         const assistantMsg: ChatMessage = {
           id: 'msg-' + (Date.now() + 1),
           role: 'assistant',
-          content: data.reply || 'Here are some top picks for you!',
+          content: data.reply || 'Here are some top recommendations for you!',
           products: Array.isArray(data.products) ? data.products : [],
           timestamp: new Date().toISOString(),
+          isStreaming: true,
         };
 
         set((state) => ({
@@ -109,8 +120,9 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
     const fallbackMsg: ChatMessage = {
       id: 'msg-' + (Date.now() + 1),
       role: 'assistant',
-      content: `I couldn't reach the live AI server right now, but feel free to browse our full catalog anytime or check your cart!`,
+      content: `Bhai, I had a momentary network hiccup, but I'm right here! Feel free to ask about any category, budget picks, or check our trending drops!`,
       timestamp: new Date().toISOString(),
+      isStreaming: true,
     };
 
     set((state) => ({
