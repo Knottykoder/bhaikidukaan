@@ -21,10 +21,10 @@ test.describe('Storefront Landing Experience', () => {
     await page.goto('/');
 
     await expect(page.getByText('Free Express Shipping')).toBeVisible();
-    await expect(page.getByText('7-Day Easy Returns')).toBeVisible();
+    await expect(page.getByRole('heading', { name: '7-Day Easy Returns' }).first()).toBeVisible();
     await expect(page.getByText('Secure Payments')).toBeVisible();
     await expect(page.getByText('24/7 Bhai AI Support')).toBeVisible();
-    await expect(page.getByText('Official Warranty')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Official Warranty' })).toBeVisible();
   });
 
   test('displays shop by category section and links', async ({ page }) => {
@@ -32,8 +32,8 @@ test.describe('Storefront Landing Experience', () => {
 
     const categoryHeading = page.getByRole('heading', { name: /Shop by Category/i });
     await expect(categoryHeading).toBeVisible();
-    await expect(page.getByText('Wireless Audio')).toBeVisible();
-    await expect(page.getByText('Smart Watches')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Wireless Audio' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Smart Watches' })).toBeVisible();
   });
 
   test('displays flash sale banner with live ticking countdown', async ({ page }) => {

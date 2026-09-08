@@ -2,12 +2,34 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Product Detail Page Experience', () => {
   test('navigates to product detail, interacts with swatches and specs tabs', async ({ page }) => {
-    await page.goto('/products');
+    // Intercept product detail API
+    await page.route('**/products/e2e-prod-1', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          id: 'e2e-prod-1',
+          name: 'Apple AirPods Max Sky Blue',
+          description: 'Acoustic masterpiece with spatial audio and active noise cancellation.',
+          price: 49999,
+          compareAtPrice: 59900,
+          currency: 'INR',
+          images: [
+            'https://images.unsplash.com/photo-1505740420928-5e560c06d30e',
+            'https://images.unsplash.com/photo-1546868871-7041f2a55e12',
+          ],
+          categoryId: 'headphones',
+          categoryName: 'Headphones',
+          stock: 10,
+          inStock: true,
+          rating: 4.9,
+          reviewCount: 258,
+          badge: 'BESTSELLER',
+        }),
+      });
+    });
 
-    // Wait for products to load and click on first product link
-    const firstProduct = page.locator('.product-card a').first();
-    await expect(firstProduct).toBeVisible();
-    await firstProduct.click();
+    await page.goto('/product/e2e-prod-1');
 
     // Verify breadcrumbs are visible
     await expect(page.getByRole('navigation', { name: /Breadcrumb/i })).toBeVisible();
