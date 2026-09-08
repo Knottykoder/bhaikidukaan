@@ -181,59 +181,127 @@ export const AiAssistant: React.FC = () => {
     }
   }, [messages, isOpen, isLoading]);
 
-  // Speech Recognition (Web Speech API)
-  useEffect(() => {
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (SpeechRecognition) {
-      const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-IN'; // Optimized for Indian English / Hinglish accent
+  const voiceTranscriptRef = useRef<string>('');
 
-      recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        if (transcript) {
-          setInputText(transcript);
-          setIsListening(false);
-          // Auto send voice input for ultra smooth human experience
-          handleSendText(transcript);
-        }
+  const handleSendText = (textToSend: string) => {
+    if (!textToSend.trim() || isLoading) return;
+
+    // Context from current state
+    const context = {
+      userName: user?.name,
+      currentProductName: location.pathname.includes('/product/')
+        ? location.pathname.split('/').pop()
+        : undefined,
+      cartCount: cartItems.length,
+    };
+
+    sendMessage(textToSend, context);
+    setInputText('');
+  };
+
+  // Cleanup speech recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch (_) { }
+      }
+    };
+  }, []);
+
+  const stopListening = () => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.stop();
+      } catch (_) { }
+    }
+    setIsListening(false);
+  };
+
+  const startListening = () => {
+    const SpeechRecognitionClass =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionClass) {
+      toast.error('Voice input is not supported in this browser. Please use Google Chrome, Edge, or Safari.');
+      return;
+    }
+
+    stopListening();
+    voiceTranscriptRef.current = '';
+
+    try {
+      const recognition = new SpeechRecognitionClass();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      // Use browser preferred language with Indian English fallback
+      recognition.lang = navigator.language || 'en-IN';
+      recognition.maxAlternatives = 1;
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        toast('🎙️ Listening... Speak your request naturally in Hindi/English!', {
+          icon: '👂',
+          id: 'voice-listening-toast',
+          duration: 3000,
+        });
       };
 
-      recognition.onerror = () => {
+      recognition.onresult = (event: any) => {
+        let fullTranscript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          fullTranscript += event.results[i][0].transcript;
+        }
+        voiceTranscriptRef.current = fullTranscript;
+        setInputText(fullTranscript);
+      };
+
+      recognition.onerror = (event: any) => {
+        console.warn('Speech recognition error event:', event.error);
         setIsListening(false);
-        toast.error('Could not capture voice. Please type your query!');
+        recognitionRef.current = null;
+
+        if (event.error === 'not-allowed') {
+          toast.error('Microphone permission blocked! Please allow microphone access in your browser address bar.');
+        } else if (event.error === 'no-speech') {
+          toast('No speech detected. Click the mic icon to try again.', { icon: 'ℹ️' });
+        } else if (event.error === 'network') {
+          toast.error(
+            'Google Speech Service unreachable. Please check Brave settings / Adblocker / VPN or Windows Speech settings.',
+            { duration: 6000 }
+          );
+        } else if (event.error === 'service-not-allowed') {
+          toast.error('Speech service unavailable. In Brave browser, enable "Use Google services for voice recognition" in settings.');
+        } else if (event.error !== 'aborted') {
+          toast.error(`Voice error: ${event.error || 'Could not capture voice'}`);
+        }
       };
 
       recognition.onend = () => {
         setIsListening(false);
+        recognitionRef.current = null;
+        const spokenText = voiceTranscriptRef.current.trim();
+        if (spokenText) {
+          handleSendText(spokenText);
+          voiceTranscriptRef.current = '';
+        }
       };
 
       recognitionRef.current = recognition;
+      recognition.start();
+    } catch (err: any) {
+      setIsListening(false);
+      recognitionRef.current = null;
+      toast.error('Could not start microphone. Please check permissions.');
     }
-  }, []);
+  };
 
   const toggleVoiceInput = () => {
-    if (!recognitionRef.current) {
-      toast.error('Voice input is not supported in this browser. Please use Google Chrome or Edge.');
-      return;
-    }
-
     if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
+      stopListening();
     } else {
-      try {
-        recognitionRef.current.start();
-        setIsListening(true);
-        toast('🎙️ Listening... Speak your request naturally in Hindi/English!', {
-          icon: '👂',
-          duration: 3000,
-        });
-      } catch (err) {
-        setIsListening(false);
-      }
+      startListening();
     }
   };
 
@@ -268,22 +336,6 @@ export const AiAssistant: React.FC = () => {
 
     setSpeakingMsgId(msgId);
     window.speechSynthesis.speak(utterance);
-  };
-
-  const handleSendText = (textToSend: string) => {
-    if (!textToSend.trim() || isLoading) return;
-
-    // Context from current state
-    const context = {
-      userName: user?.name,
-      currentProductName: location.pathname.includes('/product/')
-        ? location.pathname.split('/').pop()
-        : undefined,
-      cartCount: cartItems.length,
-    };
-
-    sendMessage(textToSend, context);
-    setInputText('');
   };
 
   const handleFormSubmit = (e: React.FormEvent) => {
@@ -956,7 +1008,7 @@ export const AiAssistant: React.FC = () => {
                 type="text"
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
-                placeholder="Ask Bhai AI (or speak with mic)..."
+                placeholder={isListening ? '🎙️ Listening... Speak now in Hindi or English...' : 'Ask Bhai AI (or speak with mic)...'}
                 disabled={isLoading}
                 style={{
                   flex: 1,
