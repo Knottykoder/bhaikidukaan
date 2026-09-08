@@ -362,6 +362,7 @@ export const Navbar: React.FC = () => {
           <Tooltip title="View Cart" arrow>
             <IconButton
               onClick={toggleCart}
+              aria-label="View Cart"
               sx={{
                 background: 'linear-gradient(135deg, #6366f1 0%, #ec4899 100%)',
                 color: '#ffffff',

@@ -234,6 +234,8 @@ export const CartDrawer: React.FC = () => {
                   >
                     <button
                       onClick={() => updateQuantity(product.id, quantity - 1)}
+                      title="Decrease"
+                      aria-label="Decrease"
                       style={{
                         width: 24,
                         height: 24,
@@ -254,6 +256,8 @@ export const CartDrawer: React.FC = () => {
                     </span>
                     <button
                       onClick={() => updateQuantity(product.id, quantity + 1)}
+                      title="Increase"
+                      aria-label="Increase"
                       style={{
                         width: 24,
                         height: 24,
@@ -274,6 +278,8 @@ export const CartDrawer: React.FC = () => {
                   <IconButton
                     size="small"
                     onClick={() => removeItem(product.id)}
+                    title="Remove"
+                    aria-label="Remove"
                     sx={{ color: '#ef4444', p: 0.5 }}
                   >
                     <Trash2 size={15} />
