@@ -148,6 +148,7 @@ message CreateOrderResponse {
 
 message GetOrderRequest {
   string order_id = 1;
+  string user_id = 2;
 }
 
 message GetOrderResponse {
@@ -171,6 +172,7 @@ message ListOrdersResponse {
 message CancelOrderRequest {
   string order_id = 1;
   string reason = 2;
+  string user_id = 3;
 }
 
 message CancelOrderResponse {

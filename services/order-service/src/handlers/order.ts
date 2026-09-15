@@ -57,6 +57,14 @@ function generateOrderNumber(): string {
   return `BKD-${dateStr}-${randomSuffix}`;
 }
 
+function isMissingUser(userId: unknown): boolean {
+  return !userId || userId === 'guest' || userId === 'usr-guest';
+}
+
+function denyIfNotOwner(orderUserId: string, requestUserId: string): boolean {
+  return orderUserId !== requestUserId;
+}
+
 // ============================================
 // Create Order
 // ============================================
@@ -78,6 +86,11 @@ export async function createOrder(
       total = 0,
       notes = '',
     } = call.request;
+
+    if (isMissingUser(userId)) {
+      callback({ code: status.UNAUTHENTICATED, message: 'Authentication required' });
+      return;
+    }
 
     if (!items || items.length === 0) {
       callback({ code: status.INVALID_ARGUMENT, message: 'Order must contain at least one item' });
@@ -127,32 +140,35 @@ export async function createOrder(
 
     const insertedItems = await db.insert(orderItems).values(itemRecords).returning();
 
-    // 3. Decrement Product Inventory Stock via Product Service gRPC
-    try {
-      await Promise.all(
-        items.map((item: any) =>
-          updateProductStock(item.productId, -Math.max(1, parseInt(item.quantity || 1, 10))),
-        ),
-      );
-    } catch (err: any) {
-      logger.warn({ err: err.message }, 'Could not decrement stock for all items');
-    }
+    const eventItems: Array<{ productId: string; productName: string; quantity: number; price: number }> = items.map((i: any) => ({
+      productId: i.productId,
+      productName: i.productName || 'Product',
+      quantity: parseInt(i.quantity || 1, 10),
+      price: parseFloat(i.price || 0),
+    }));
 
-    // 4. Publish Kafka Event: ORDER_CREATED
-    publishOrderEvent('ORDER_CREATED', {
+    // Inventory is owned by product-service via Kafka. Fall back to gRPC if the broker is down.
+    const published = await publishOrderEvent('ORDER_CREATED', {
       orderId: newOrder.id,
       orderNumber: newOrder.orderNumber,
       userId: newOrder.userId,
-      items: items.map((i: any) => ({
-        productId: i.productId,
-        productName: i.productName || 'Product',
-        quantity: parseInt(i.quantity || 1, 10),
-        price: parseFloat(i.price || 0),
-      })),
+      items: eventItems,
       total: parseFloat(newOrder.total),
       paymentMethod: newOrder.paymentMethod,
       timestamp: new Date().toISOString(),
-    }).catch(() => { });
+    }).catch(() => false);
+
+    if (!published) {
+      try {
+        await Promise.all(
+          eventItems.map((item) =>
+            updateProductStock(item.productId, -Math.max(1, item.quantity)),
+          ),
+        );
+      } catch (err: any) {
+        logger.warn({ err: err.message }, 'Could not decrement stock for all items');
+      }
+    }
 
     callback(null, {
       order: formatOrder(newOrder, insertedItems),
@@ -173,10 +189,15 @@ export async function getOrder(
   callback: sendUnaryData<any>,
 ): Promise<void> {
   try {
-    const { orderId } = call.request;
+    const { orderId, userId } = call.request;
 
     if (!orderId) {
       callback({ code: status.INVALID_ARGUMENT, message: 'Order ID is required' });
+      return;
+    }
+
+    if (isMissingUser(userId)) {
+      callback({ code: status.UNAUTHENTICATED, message: 'Authentication required' });
       return;
     }
 
@@ -187,7 +208,7 @@ export async function getOrder(
       },
     });
 
-    if (!order) {
+    if (!order || denyIfNotOwner(order.userId, userId)) {
       callback({ code: status.NOT_FOUND, message: 'Order not found' });
       return;
     }
@@ -210,6 +231,11 @@ export async function listOrders(
   try {
     const { userId, page = 1, pageSize = 20, status: filterStatus } = call.request;
 
+    if (isMissingUser(userId)) {
+      callback({ code: status.UNAUTHENTICATED, message: 'Authentication required' });
+      return;
+    }
+
     const limit = Math.max(1, Math.min(pageSize, 50));
     const offset = (Math.max(1, page) - 1) * limit;
 
@@ -219,14 +245,9 @@ export async function listOrders(
       filterStatus !== '0' &&
       filterStatus !== '';
 
-    let whereClause = undefined;
-    if (userId && isValidStatus) {
-      whereClause = and(eq(orders.userId, userId), eq(orders.status, filterStatus));
-    } else if (userId) {
-      whereClause = eq(orders.userId, userId);
-    } else if (isValidStatus) {
-      whereClause = eq(orders.status, filterStatus);
-    }
+    const whereClause = isValidStatus
+      ? and(eq(orders.userId, userId), eq(orders.status, filterStatus))
+      : eq(orders.userId, userId);
 
     const [userOrders, totalCountResult] = await Promise.all([
       db.query.orders.findMany({
@@ -264,7 +285,29 @@ export async function cancelOrder(
   callback: sendUnaryData<any>,
 ): Promise<void> {
   try {
-    const { orderId, reason } = call.request;
+    const { orderId, reason, userId } = call.request;
+
+    if (isMissingUser(userId)) {
+      callback({ code: status.UNAUTHENTICATED, message: 'Authentication required' });
+      return;
+    }
+
+    const existing = await db.query.orders.findFirst({
+      where: eq(orders.id, orderId),
+    });
+
+    if (!existing || denyIfNotOwner(existing.userId, userId)) {
+      callback({ code: status.NOT_FOUND, message: 'Order not found' });
+      return;
+    }
+
+    if (existing.status === 'CANCELLED' || existing.status === 'ORDER_STATUS_CANCELLED') {
+      const items = await db.query.orderItems.findMany({
+        where: eq(orderItems.orderId, existing.id),
+      });
+      callback(null, { order: formatOrder(existing, items) });
+      return;
+    }
 
     const [updatedOrder] = await db
       .update(orders)
@@ -285,21 +328,34 @@ export async function cancelOrder(
       where: eq(orderItems.orderId, updatedOrder.id),
     });
 
-    // Publish Kafka Event: ORDER_CANCELLED
-    publishOrderEvent('ORDER_CANCELLED', {
+    const eventItems = items.map((i) => ({
+      productId: i.productId,
+      productName: i.productName,
+      quantity: i.quantity,
+      price: parseFloat(i.price),
+    }));
+
+    const published = await publishOrderEvent('ORDER_CANCELLED', {
       orderId: updatedOrder.id,
       orderNumber: updatedOrder.orderNumber,
       userId: updatedOrder.userId,
-      items: items.map((i) => ({
-        productId: i.productId,
-        productName: i.productName,
-        quantity: i.quantity,
-        price: parseFloat(i.price),
-      })),
+      items: eventItems,
       total: parseFloat(updatedOrder.total),
       reason: reason || 'Cancelled by customer',
       timestamp: new Date().toISOString(),
-    }).catch(() => { });
+    }).catch(() => false);
+
+    if (!published) {
+      try {
+        await Promise.all(
+          eventItems.map((item) =>
+            updateProductStock(item.productId, Math.max(1, item.quantity)),
+          ),
+        );
+      } catch (err: any) {
+        logger.warn({ err: err.message }, 'Could not restock items after cancel');
+      }
+    }
 
     logger.info({ orderId, orderNumber: updatedOrder.orderNumber }, '🚫 Order Cancelled');
 

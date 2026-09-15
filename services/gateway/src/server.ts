@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { config } from './config.js';
 import { logger } from './logger.js';
+import { apiRateLimiter } from './auth/rateLimit.js';
 import authRoutes from './routes/auth.js';
 import productRoutes from './routes/products.js';
 import orderRoutes from './routes/orders.js';
@@ -11,11 +12,8 @@ import { aiRoutes } from './routes/ai.js';
 
 const app = express();
 
-// ============================================
-// Middleware
-// ============================================
+app.set('trust proxy', 1);
 
-// Security headers
 app.use(helmet({ contentSecurityPolicy: false }));
 
 // CORS — allow frontend origins
@@ -54,6 +52,8 @@ app.get('/health', (_req, res) => {
 // ============================================
 // API Routes
 // ============================================
+
+app.use('/api', apiRateLimiter);
 
 app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);

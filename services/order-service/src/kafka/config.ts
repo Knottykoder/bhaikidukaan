@@ -1,4 +1,4 @@
-import { Kafka, type Producer, logLevel } from 'kafkajs';
+import { Kafka, type Consumer, type Producer, logLevel } from 'kafkajs';
 import { logger } from '../utils/logger.js';
 
 export const BKD_TOPICS = {
@@ -25,31 +25,73 @@ export const kafka = new Kafka({
 });
 
 let producer: Producer | null = null;
-let isConnected = false;
+let producerConnected = false;
+let consumer: Consumer | null = null;
+let consumerConnected = false;
+let stopRequested = false;
 
 export async function getKafkaProducer(): Promise<Producer | null> {
-  if (producer && isConnected) return producer;
+  if (producer && producerConnected) return producer;
 
   try {
     producer = kafka.producer({ allowAutoTopicCreation: true });
     await producer.connect();
-    isConnected = true;
+    producerConnected = true;
     logger.info({ brokers }, '🔌 Connected to Apache Kafka Producer');
     return producer;
   } catch (err: any) {
     logger.warn({ err: err.message }, '⚠️ Kafka broker not reachable, continuing in resilient mode');
     producer = null;
-    isConnected = false;
+    producerConnected = false;
     return null;
   }
 }
 
-export async function disconnectKafkaProducer(): Promise<void> {
-  if (producer && isConnected) {
+export async function getKafkaConsumer(): Promise<Consumer | null> {
+  if (stopRequested) return null;
+  if (consumer && consumerConnected) return consumer;
+
+  try {
+    consumer = kafka.consumer({
+      groupId: 'bkd-order-payments',
+      allowAutoTopicCreation: true,
+    });
+    await consumer.connect();
+    consumerConnected = true;
+    logger.info({ brokers, groupId: 'bkd-order-payments' }, '🔌 Order Service connected to Apache Kafka Consumer');
+    return consumer;
+  } catch (err: any) {
+    logger.warn({ err: err.message }, '⚠️ Kafka consumer not reachable from order-service');
+    consumer = null;
+    consumerConnected = false;
+    return null;
+  }
+}
+
+export async function disconnectKafka(): Promise<void> {
+  stopRequested = true;
+  if (consumer && consumerConnected) {
+    try {
+      await consumer.disconnect();
+    } catch (_) {}
+    consumerConnected = false;
+    consumer = null;
+  }
+  if (producer && producerConnected) {
     try {
       await producer.disconnect();
-      isConnected = false;
-      logger.info('👋 Disconnected Kafka Producer');
     } catch (_) {}
+    producerConnected = false;
+    producer = null;
   }
+  logger.info('👋 Order Service disconnected from Kafka');
+}
+
+export function isKafkaStopRequested(): boolean {
+  return stopRequested;
+}
+
+export function markConsumerDisconnected(): void {
+  consumerConnected = false;
+  consumer = null;
 }

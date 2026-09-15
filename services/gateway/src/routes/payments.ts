@@ -1,12 +1,12 @@
 import { Router, type Request, type Response } from 'express';
 import { paymentServiceClient, grpcCall } from '../grpc-clients.js';
 import { logger } from '../logger.js';
+import { requireAuth } from '../auth/middleware.js';
 
 const router = Router();
 
-// ============================================
-// POST /api/payments/create-order
-// ============================================
+router.use(requireAuth);
+
 router.post('/create-order', async (req: Request, res: Response) => {
   try {
     const { amount, currency = 'INR', orderId = '' } = req.body;
@@ -22,7 +22,10 @@ router.post('/create-order', async (req: Request, res: Response) => {
       currency,
     });
 
-    logger.info({ razorpayOrderId: response.razorpayOrderId, amount }, '✅ Payment order created');
+    logger.info(
+      { razorpayOrderId: response.razorpayOrderId, amount, userId: req.auth!.userId },
+      '✅ Payment order created',
+    );
 
     res.json(response);
   } catch (err: any) {
@@ -31,9 +34,6 @@ router.post('/create-order', async (req: Request, res: Response) => {
   }
 });
 
-// ============================================
-// POST /api/payments/verify
-// ============================================
 router.post('/verify', async (req: Request, res: Response) => {
   try {
     const { razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId } = req.body;
@@ -50,7 +50,10 @@ router.post('/verify', async (req: Request, res: Response) => {
       orderId: orderId || '',
     });
 
-    logger.info({ verified: response.verified, paymentId: razorpayPaymentId }, '✅ Payment verified');
+    logger.info(
+      { verified: response.verified, paymentId: razorpayPaymentId, userId: req.auth!.userId },
+      '✅ Payment verified',
+    );
 
     res.json(response);
   } catch (err: any) {
@@ -59,9 +62,6 @@ router.post('/verify', async (req: Request, res: Response) => {
   }
 });
 
-// ============================================
-// GET /api/payments/:orderId
-// ============================================
 router.get('/:orderId', async (req: Request, res: Response) => {
   try {
     const { orderId } = req.params;

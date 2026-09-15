@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { ProductModel, type IProduct } from '../db/models/product.model.js';
 import { CategoryModel } from '../db/models/category.model.js';
 import { FALLBACK_PRODUCTS, FALLBACK_CATEGORIES, type ProductItem } from '../db/fallback-data.js';
+import { applyStockDelta } from '../inventory.js';
 import { logger } from '../utils/logger.js';
 
 function isMongoReady(): boolean {
@@ -400,38 +401,17 @@ export async function updateStock(
 ): Promise<void> {
   try {
     const { productId, quantityDelta } = call.request;
-    if (isMongoReady()) {
-      const isObjId = mongoose.Types.ObjectId.isValid(productId);
-      const query = isObjId ? { _id: productId } : { $or: [{ slug: productId }, { name: productId }] };
-      const product = await ProductModel.findOneAndUpdate(
-        query,
-        { $inc: { stock: quantityDelta } },
-        { new: true },
-      ).exec();
-      if (product) {
-        logger.info({ productId, newStock: product.stock, quantityDelta }, '📉 Stock updated in MongoDB');
-        callback(null, {
-          success: true,
-          newStock: product.stock,
-          productId,
-        });
-        return;
-      }
-    }
-
-    const prod = FALLBACK_PRODUCTS.find((p) => p.id === productId || p.slug === productId || p.name === productId);
-    if (prod) {
-      prod.stock = Math.max(0, prod.stock + quantityDelta);
-      logger.info({ productId, newStock: prod.stock, quantityDelta }, '📉 Stock updated in catalog');
-      callback(null, {
-        success: true,
-        newStock: prod.stock,
-        productId,
-      });
+    const result = await applyStockDelta(productId, quantityDelta);
+    if (!result) {
+      callback({ code: status.NOT_FOUND, message: 'Product not found' });
       return;
     }
 
-    callback({ code: status.NOT_FOUND, message: 'Product not found' });
+    callback(null, {
+      success: true,
+      newStock: result.newStock,
+      productId,
+    });
   } catch (error) {
     logger.error({ error }, '❌ updateStock failed');
     callback({ code: status.INTERNAL, message: 'Failed to update stock' });
