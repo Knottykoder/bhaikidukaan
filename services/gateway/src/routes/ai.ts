@@ -1,6 +1,7 @@
 import { Router, type Request, type Response } from 'express';
 import { productServiceClient, orderServiceClient } from '../grpc-clients.js';
 import { logger } from '../logger.js';
+import { optionalAuth } from '../auth/middleware.js';
 
 export const aiRoutes = Router();
 
@@ -36,9 +37,9 @@ function fetchProductsFromGrpc(query = ''): Promise<any[]> {
 // ============================================
 // Helper: Fetch order details by number
 // ============================================
-function fetchOrderByNumber(orderNumber: string): Promise<any | null> {
+function fetchOrderByNumber(orderNumber: string, userId: string): Promise<any | null> {
   return new Promise((resolve) => {
-    orderServiceClient.listOrders({ page: 1, pageSize: 20 }, (err: any, response: any) => {
+    orderServiceClient.listOrders({ page: 1, pageSize: 50, userId }, (err: any, response: any) => {
       if (err || !response?.orders) {
         resolve(null);
         return;
@@ -57,7 +58,7 @@ function fetchOrderByNumber(orderNumber: string): Promise<any | null> {
 async function generateSmartReply(
   userMessage: string,
   allProducts: any[],
-  context: { userName?: string; currentProductName?: string; cartCount?: number } = {},
+  context: { userName?: string; currentProductName?: string; cartCount?: number; userId?: string } = {},
 ) {
   const text = userMessage.toLowerCase().trim();
   const userName = context.userName ? `${context.userName} ji` : 'Bhai';
@@ -66,7 +67,7 @@ async function generateSmartReply(
   const orderMatch = text.match(/\b(bkd-[a-z0-9\-]+)\b/i) || text.match(/order\s*#?\s*([a-z0-9\-]+)/i);
   if (orderMatch || text.includes('track') || text.includes('status')) {
     const code = orderMatch ? orderMatch[1].toUpperCase() : null;
-    let liveOrder = code ? await fetchOrderByNumber(code) : null;
+    let liveOrder = code && context.userId ? await fetchOrderByNumber(code, context.userId) : null;
 
     if (liveOrder) {
       return {
@@ -285,7 +286,7 @@ ${JSON.stringify(catalogSummary)}`;
 // ============================================
 // Route: POST /api/ai/chat
 // ============================================
-aiRoutes.post('/chat', async (req: Request, res: Response): Promise<void> => {
+aiRoutes.post('/chat', optionalAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const {
       message = '',
@@ -300,7 +301,7 @@ aiRoutes.post('/chat', async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const context = { userName, currentProductName, cartCount };
+    const context = { userName, currentProductName, cartCount, userId: req.auth?.userId };
 
     // 1. Fetch live product catalog
     const allProducts = await fetchProductsFromGrpc();

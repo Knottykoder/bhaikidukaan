@@ -1,13 +1,15 @@
 import { Router, type Request, type Response } from 'express';
 import { userServiceClient, grpcCall } from '../grpc-clients.js';
 import { logger } from '../logger.js';
+import { requireAuth } from '../auth/middleware.js';
+import { authRateLimiter } from '../auth/rateLimit.js';
 
 const router = Router();
 
 // ============================================
 // POST /api/auth/register
 // ============================================
-router.post('/register', async (req: Request, res: Response) => {
+router.post('/register', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { name, email, password, phone } = req.body;
 
@@ -50,7 +52,7 @@ router.post('/register', async (req: Request, res: Response) => {
 // ============================================
 // POST /api/auth/login
 // ============================================
-router.post('/login', async (req: Request, res: Response) => {
+router.post('/login', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -90,7 +92,7 @@ router.post('/login', async (req: Request, res: Response) => {
 // ============================================
 // POST /api/auth/refresh
 // ============================================
-router.post('/refresh', async (req: Request, res: Response) => {
+router.post('/refresh', authRateLimiter, async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
 
@@ -113,7 +115,7 @@ router.post('/refresh', async (req: Request, res: Response) => {
 // ============================================
 // GET /api/auth/profile  (requires Authorization header)
 // ============================================
-router.get('/profile', async (req: Request, res: Response) => {
+router.get('/profile', requireAuth, async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -141,7 +143,7 @@ router.get('/profile', async (req: Request, res: Response) => {
 // ============================================
 // PUT /api/auth/profile
 // ============================================
-router.put('/profile', async (req: Request, res: Response) => {
+router.put('/profile', requireAuth, async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -174,7 +176,7 @@ router.put('/profile', async (req: Request, res: Response) => {
 // ============================================
 // POST /api/auth/addresses
 // ============================================
-router.post('/addresses', async (req: Request, res: Response) => {
+router.post('/addresses', requireAuth, async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {
@@ -219,7 +221,7 @@ router.post('/addresses', async (req: Request, res: Response) => {
 // ============================================
 // DELETE /api/auth/addresses/:id
 // ============================================
-router.delete('/addresses/:id', async (req: Request, res: Response) => {
+router.delete('/addresses/:id', requireAuth, async (req: Request, res: Response) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader) {

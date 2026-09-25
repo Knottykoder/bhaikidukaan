@@ -1,31 +1,15 @@
 import { Router, type Request, type Response } from 'express';
-import jwt from 'jsonwebtoken';
 import { orderServiceClient, grpcCall } from '../grpc-clients.js';
 import { logger } from '../logger.js';
+import { requireAuth } from '../auth/middleware.js';
 
 const router = Router();
 
-// Helper: Extract userId from JWT token
-function getUserIdFromReq(req: Request): string {
-  const authHeader = req.headers.authorization;
-  if (authHeader && authHeader.startsWith('Bearer ')) {
-    const token = authHeader.substring(7);
-    try {
-      const decoded: any = jwt.decode(token);
-      if (decoded && decoded.userId) return decoded.userId;
-    } catch {
-      // ignore
-    }
-  }
-  return (req.body && req.body.userId) || 'usr-guest';
-}
+router.use(requireAuth);
 
-// ============================================
-// POST /api/orders — Place Order
-// ============================================
 router.post('/', async (req: Request, res: Response) => {
   try {
-    const userId = getUserIdFromReq(req);
+    const userId = req.auth!.userId;
     const {
       items,
       shippingAddress,
@@ -84,20 +68,21 @@ router.post('/', async (req: Request, res: Response) => {
     res.status(201).json(response);
   } catch (err: any) {
     logger.error({ err: err.message }, '❌ Create order failed');
+    if (err.code === 16) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
     res.status(500).json({ error: err.details || 'Failed to create order' });
   }
 });
 
-// ============================================
-// GET /api/orders — List User Orders
-// ============================================
 router.get('/', async (req: Request, res: Response) => {
   try {
-    const userId = getUserIdFromReq(req);
+    const userId = req.auth!.userId;
     const { page = '1', pageSize = '20', status } = req.query;
 
     const response = await grpcCall<any, any>(orderServiceClient, 'listOrders', {
-      userId: userId === 'usr-guest' ? '' : userId,
+      userId,
       page: parseInt(page as string, 10),
       pageSize: parseInt(pageSize as string, 10),
       status: (status as string) || '',
@@ -106,18 +91,20 @@ router.get('/', async (req: Request, res: Response) => {
     res.json(response);
   } catch (err: any) {
     logger.error({ err: err.message }, '❌ List orders failed');
+    if (err.code === 16) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
     res.status(500).json({ error: 'Failed to retrieve orders' });
   }
 });
 
-// ============================================
-// GET /api/orders/:id — Get Single Order
-// ============================================
 router.get('/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const response = await grpcCall<any, any>(orderServiceClient, 'getOrder', {
       orderId: id,
+      userId: req.auth!.userId,
     });
 
     res.json(response);
@@ -127,13 +114,14 @@ router.get('/:id', async (req: Request, res: Response) => {
       res.status(404).json({ error: 'Order not found' });
       return;
     }
+    if (err.code === 16) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
     res.status(500).json({ error: 'Failed to retrieve order' });
   }
 });
 
-// ============================================
-// PATCH /api/orders/:id/cancel — Cancel Order
-// ============================================
 router.patch('/:id/cancel', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -142,11 +130,20 @@ router.patch('/:id/cancel', async (req: Request, res: Response) => {
     const response = await grpcCall<any, any>(orderServiceClient, 'cancelOrder', {
       orderId: id,
       reason,
+      userId: req.auth!.userId,
     });
 
     res.json(response);
   } catch (err: any) {
     logger.error({ err: err.message }, '❌ Cancel order failed');
+    if (err.code === 5) {
+      res.status(404).json({ error: 'Order not found' });
+      return;
+    }
+    if (err.code === 16) {
+      res.status(401).json({ error: 'Authentication required' });
+      return;
+    }
     res.status(500).json({ error: 'Failed to cancel order' });
   }
 });

@@ -28,9 +28,30 @@ function getEnvInt(key: string, defaultValue: number): number {
   return value ? parseInt(value, 10) : defaultValue;
 }
 
+const INSECURE_JWT_DEFAULTS = new Set([
+  'bhai-ki-dukaan-access-secret-dev',
+  'bhai-ki-dukaan-access-secret-change-me',
+  'bhai-ki-dukaan-access-secret-production-key-change-me',
+]);
+
+function jwtAccessSecret(): string {
+  const value = process.env.JWT_ACCESS_SECRET;
+  const isProd = (process.env.NODE_ENV || 'development') === 'production';
+  if (isProd) {
+    if (!value || INSECURE_JWT_DEFAULTS.has(value)) {
+      throw new Error('JWT_ACCESS_SECRET must be a unique secret in production (do not use repo defaults)');
+    }
+    return value;
+  }
+  return value || 'bhai-ki-dukaan-access-secret-dev';
+}
+
 export const config = {
   port: getEnvInt('PORT', getEnvInt('GATEWAY_PORT', 4000)),
   host: getEnv('GATEWAY_HOST', '0.0.0.0'),
+  jwt: {
+    accessSecret: jwtAccessSecret(),
+  },
 
   // gRPC Service addresses
   userServiceAddress: getEnv('USER_SERVICE_ADDRESS', 'localhost:50051'),

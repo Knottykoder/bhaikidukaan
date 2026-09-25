@@ -5,6 +5,8 @@ import { fileURLToPath } from 'url';
 import { config } from './config.js';
 import { logger } from './utils/logger.js';
 import { connectDB, disconnectDB } from './db/index.js';
+import { startOrderEventConsumer } from './kafka/consumer.js';
+import { disconnectKafka } from './kafka/config.js';
 
 // Import handlers
 import {
@@ -44,6 +46,7 @@ const productProto = protoDescriptor.product.v1;
 async function startServer(): Promise<void> {
   // Connect to database (with fallback to memory if offline)
   await connectDB();
+  await startOrderEventConsumer();
 
   // Create gRPC server
   const server = new grpc.Server({
@@ -89,6 +92,7 @@ async function startServer(): Promise<void> {
   const shutdown = async (signal: string) => {
     logger.info(`\n📴 Received ${signal}, shutting down gracefully...`);
     server.tryShutdown(async () => {
+      await disconnectKafka();
       await disconnectDB();
       logger.info('👋 Product Service stopped');
       process.exit(0);

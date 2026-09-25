@@ -82,9 +82,13 @@ export const useAiChatStore = create<AiChatState>((set, get) => ({
         content: m.content,
       }));
 
+      const token = localStorage.getItem('bkd_access_token');
       const res = await fetch(`${API_BASE}/ai/chat`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({
           message: text.trim(),
           history: historyPayload,

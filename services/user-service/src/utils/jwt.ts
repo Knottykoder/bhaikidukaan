@@ -6,32 +6,33 @@ export interface TokenPayload {
   email: string;
 }
 
-/**
- * Generate JWT access token (short-lived — 15 min default)
- */
+function readPayload(decoded: string | jwt.JwtPayload): TokenPayload {
+  if (typeof decoded !== 'object' || decoded === null) {
+    throw new jwt.JsonWebTokenError('Invalid token payload');
+  }
+  const userId = typeof decoded.userId === 'string' ? decoded.userId : '';
+  const email = typeof decoded.email === 'string' ? decoded.email : '';
+  if (!userId) {
+    throw new jwt.JsonWebTokenError('Token is missing userId');
+  }
+  return { userId, email };
+}
+
 export function generateAccessToken(payload: TokenPayload): string {
   return jwt.sign(payload, config.jwt.accessSecret, {
-    expiresIn: config.jwt.accessExpiresIn as any,
+    expiresIn: config.jwt.accessExpiresIn as jwt.SignOptions['expiresIn'],
   });
 }
 
-/**
- * Generate JWT refresh token (long-lived — 7 days default)
- */
 export function generateRefreshToken(payload: TokenPayload): string {
   return jwt.sign(payload, config.jwt.refreshSecret, {
-    expiresIn: config.jwt.refreshExpiresIn as any,
+    expiresIn: config.jwt.refreshExpiresIn as jwt.SignOptions['expiresIn'],
   });
 }
 
-/**
- * Generate both access + refresh tokens
- */
 export function generateTokenPair(payload: TokenPayload) {
   const accessToken = generateAccessToken(payload);
   const refreshToken = generateRefreshToken(payload);
-
-  // Decode to get expiry time
   const decoded = jwt.decode(accessToken) as jwt.JwtPayload;
   const expiresIn = decoded?.exp ? decoded.exp - Math.floor(Date.now() / 1000) : 900;
 
@@ -42,39 +43,10 @@ export function generateTokenPair(payload: TokenPayload) {
   };
 }
 
-/**
- * Verify access token
- */
 export function verifyAccessToken(token: string): TokenPayload {
-  try {
-    return jwt.verify(token, config.jwt.accessSecret) as TokenPayload;
-  } catch (err: any) {
-    // If expired or signed in dev, decode if payload has valid structure
-    const decoded = jwt.decode(token) as any;
-    if (decoded && (decoded.userId || decoded.id)) {
-      return {
-        userId: decoded.userId || decoded.id,
-        email: decoded.email || '',
-      };
-    }
-    throw err;
-  }
+  return readPayload(jwt.verify(token, config.jwt.accessSecret));
 }
 
-/**
- * Verify refresh token
- */
 export function verifyRefreshToken(token: string): TokenPayload {
-  try {
-    return jwt.verify(token, config.jwt.refreshSecret) as TokenPayload;
-  } catch (err: any) {
-    const decoded = jwt.decode(token) as any;
-    if (decoded && (decoded.userId || decoded.id)) {
-      return {
-        userId: decoded.userId || decoded.id,
-        email: decoded.email || '',
-      };
-    }
-    throw err;
-  }
+  return readPayload(jwt.verify(token, config.jwt.refreshSecret));
 }

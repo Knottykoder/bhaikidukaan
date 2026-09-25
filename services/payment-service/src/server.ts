@@ -12,6 +12,7 @@ import {
   getPaymentStatus,
   refundPayment,
 } from './handlers/payment.js';
+import { disconnectKafkaProducer } from './kafka/config.js';
 
 // ============================================
 // Proto Loading
@@ -76,6 +77,7 @@ async function startServer(): Promise<void> {
   const shutdown = async (signal: string) => {
     logger.info(`\n📴 Received ${signal}, shutting down gracefully...`);
     server.tryShutdown(async () => {
+      await disconnectKafkaProducer();
       logger.info('👋 Payment Service stopped');
       process.exit(0);
     });

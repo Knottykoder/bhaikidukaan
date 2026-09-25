@@ -38,6 +38,27 @@ function getEnvInt(key: string, defaultValue: number): number {
   return value ? parseInt(value, 10) : defaultValue;
 }
 
+const INSECURE_JWT_DEFAULTS = new Set([
+  'bhai-ki-dukaan-access-secret-dev',
+  'bhai-ki-dukaan-access-secret-change-me',
+  'bhai-ki-dukaan-access-secret-production-key-change-me',
+  'bhai-ki-dukaan-refresh-secret-dev',
+  'bhai-ki-dukaan-refresh-secret-change-me',
+  'bhai-ki-dukaan-refresh-secret-production-key-change-me',
+]);
+
+function jwtSecret(key: string, devDefault: string): string {
+  const value = process.env[key];
+  const isProd = (process.env.NODE_ENV || 'development') === 'production';
+  if (isProd) {
+    if (!value || INSECURE_JWT_DEFAULTS.has(value)) {
+      throw new Error(`${key} must be a unique secret in production (do not use repo defaults)`);
+    }
+    return value;
+  }
+  return value || devDefault;
+}
+
 export const config = {
   // Server
   port: getEnvInt('GRPC_PORT', 50051),
@@ -58,8 +79,8 @@ export const config = {
 
   // JWT
   jwt: {
-    accessSecret: getEnv('JWT_ACCESS_SECRET', 'bhai-ki-dukaan-access-secret-dev'),
-    refreshSecret: getEnv('JWT_REFRESH_SECRET', 'bhai-ki-dukaan-refresh-secret-dev'),
+    accessSecret: jwtSecret('JWT_ACCESS_SECRET', 'bhai-ki-dukaan-access-secret-dev'),
+    refreshSecret: jwtSecret('JWT_REFRESH_SECRET', 'bhai-ki-dukaan-refresh-secret-dev'),
     accessExpiresIn: getEnv('JWT_ACCESS_EXPIRES_IN', '15m'),
     refreshExpiresIn: getEnv('JWT_REFRESH_EXPIRES_IN', '7d'),
   },

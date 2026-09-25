@@ -13,6 +13,14 @@ declare global {
   }
 }
 
+function authJsonHeaders(): Record<string, string> {
+  const token = localStorage.getItem('bkd_access_token');
+  return {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+}
+
 export const Checkout: React.FC = () => {
   const navigate = useNavigate();
   const { items, getSubtotal, getTax, getShipping, getTotal, createOrder } = useCartStore();
@@ -113,7 +121,7 @@ export const Checkout: React.FC = () => {
     try {
       const createRes = await fetch(`${API_BASE}/payments/create-order`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: authJsonHeaders(),
         body: JSON.stringify({ amount: total, currency: 'INR' }),
       });
       if (createRes.ok) {
@@ -149,23 +157,22 @@ export const Checkout: React.FC = () => {
         image: 'https://api.dicebear.com/7.x/bottts/svg?seed=bhaikidukaan',
         handler: async function (response: any) {
           const paymentId = response.razorpay_payment_id || 'pay_' + Math.random().toString(36).substring(2, 9);
+          const order = await createOrder(shippingAddress, paymentId, 'razorpay');
 
-          // Verify payment signature via backend
           try {
             await fetch(`${API_BASE}/payments/verify`, {
               method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
+              headers: authJsonHeaders(),
               body: JSON.stringify({
                 razorpayOrderId: response.razorpay_order_id || rzpOrderId,
                 razorpayPaymentId: response.razorpay_payment_id,
                 razorpaySignature: response.razorpay_signature || 'test_verified',
+                orderId: order.id,
               }),
             });
           } catch (err) {
             console.warn('Payment verify call error:', err);
           }
-
-          const order = await createOrder(shippingAddress, paymentId, 'razorpay');
           setIsProcessing(false);
           toast.success('Payment verified successfully! 🎉');
           navigate(`/orders?success=${order.id}`);
@@ -205,6 +212,20 @@ export const Checkout: React.FC = () => {
     setTimeout(async () => {
       const paymentId = 'pay_sim_' + Math.random().toString(36).substring(2, 10);
       const order = await createOrder(shippingAddress, paymentId, 'razorpay');
+      try {
+        await fetch(`${API_BASE}/payments/verify`, {
+          method: 'POST',
+          headers: authJsonHeaders(),
+          body: JSON.stringify({
+            razorpayOrderId: `order_sim_${Date.now()}`,
+            razorpayPaymentId: paymentId,
+            razorpaySignature: 'test_verified',
+            orderId: order.id,
+          }),
+        });
+      } catch (err) {
+        console.warn('Payment verify call error:', err);
+      }
       setIsProcessing(false);
       toast.success('Test Payment Verified Successfully! 🚀');
       navigate(`/orders?success=${order.id}`);

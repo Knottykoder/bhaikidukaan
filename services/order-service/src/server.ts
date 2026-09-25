@@ -19,6 +19,8 @@ import {
   removeFromCart,
   clearCart,
 } from './handlers/order.js';
+import { startPaymentEventConsumer } from './kafka/consumer.js';
+import { disconnectKafka } from './kafka/config.js';
 
 // ============================================
 // Proto Loading
@@ -47,6 +49,7 @@ const orderProto = protoDescriptor.order.v1;
 async function startServer(): Promise<void> {
   // Test database connection
   await testConnection();
+  await startPaymentEventConsumer();
 
   // Create gRPC server
   const server = new grpc.Server({
@@ -98,6 +101,7 @@ async function startServer(): Promise<void> {
   const shutdown = async (signal: string) => {
     logger.info(`\n📴 Received ${signal}, shutting down gracefully...`);
     server.tryShutdown(async () => {
+      await disconnectKafka();
       logger.info('👋 Order Service stopped');
       process.exit(0);
     });
